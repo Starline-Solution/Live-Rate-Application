@@ -1472,158 +1472,326 @@ namespace Live_Rate_Application
             }
         }
 
-        public void SymbolExportToExcel()=>
-            System.Threading.ThreadPool.QueueUserWorkItem(_ =>
+        //public void SymbolExportToExcel()=>
+        //    System.Threading.ThreadPool.QueueUserWorkItem(_ =>
+        //    {
+
+        //        bool fileopen = CommonClass.IsFileLocked(excelFilePath);
+        //        if (fileopen && (workbook == null || worksheet == null))
+        //        {
+        //            try
+        //            {
+        //                // Try to get running Excel instance
+        //                try
+        //                {
+        //                    excelApp = GetRunningExcelInstance();
+        //                    if (excelApp != null)
+        //                    {
+        //                        excelApp.UserControl = true; // Prevent Excel from taking focus
+        //                        excelApp.DisplayAlerts = false; // Suppress Excel alerts
+        //                        excelApp.IgnoreRemoteRequests = true; // Ignore Request of File Open/Write in same Instance
+        //                        ((Excel.AppEvents_Event)excelApp).NewWorkbook += ExcelApp_NewWorkbook;
+        //                    }
+        //                }
+        //                catch (COMException)
+        //                {
+        //                    Console.WriteLine("Excel is not running.");
+        //                    return;
+        //                }
+
+        //                if (excelApp == null)
+        //                {
+        //                    Console.WriteLine("Excel is not running.");
+        //                    return;
+        //                }
+
+        //                // Get the active workbook
+        //                workbook = excelApp.ActiveWorkbook;
+
+        //                if (workbook == null)
+        //                {
+        //                    Console.WriteLine("No workbook is currently open.");
+        //                    return;
+        //                }
+
+        //                // Get "Sheet1"
+        //                worksheet = workbook.Sheets["Sheet1"] as Excel.Worksheet;
+
+        //                if (worksheet == null)
+        //                {
+        //                    Console.WriteLine("Sheet1 not found.");
+        //                    return;
+        //                }
+        //            }
+        //            catch (Exception)
+        //            {
+        //                workbook = null;
+        //                worksheet = null;
+        //                return;
+        //            }
+        //        }
+
+        //        if (workbook == null || worksheet == null || fileopen == false)
+        //        {
+        //            CleanupExcelResources();
+        //            return;
+        //        }
+
+        //        if (dataGridView1 == null || worksheet == null || workbook == null || excelApp == null)
+        //        {
+        //            return;
+        //        }
+
+        //        try
+        //        {
+
+        //            // Add headers
+        //            for (int i = 0; i < dataGridView1.Columns.Count; i++)
+        //            {
+        //                worksheet.Cells[1, i + 1] = dataGridView1.Columns[i].HeaderText;
+        //                ((Excel.Range)worksheet.Cells[1, i + 1]).Font.Bold = true;
+        //            }
+
+        //            int rowsToPreserve = dataGridView1.Rows.Count;
+        //            if (dataGridView1.AllowUserToAddRows)
+        //            {
+        //                // Exclude the "new row" if present
+        //                if (dataGridView1.Rows.Count > 0 && dataGridView1.Rows[dataGridView1.Rows.Count - 1].IsNewRow)
+        //                {
+        //                    rowsToPreserve--;
+        //                }
+        //            }
+
+        //            // Clear all rows except header and first N rows (where N = rowsToPreserve)
+        //            Excel.Range usedRange = worksheet.UsedRange;
+        //            if (usedRange != null && usedRange.Rows.Count > 1 + rowsToPreserve)
+        //            {
+        //                // Calculate the range to clear (rows after header + preserved rows)
+        //                int firstRowToClear = 2 + rowsToPreserve; // Row numbers start at 1 in Excel
+        //                int lastRowInSheet = usedRange.Rows.Count;
+
+        //                Excel.Range rowsToClear = worksheet.Range[
+        //                    worksheet.Cells[firstRowToClear, 1],
+        //                    worksheet.Cells[lastRowInSheet, usedRange.Columns.Count]];
+
+        //                rowsToClear.ClearContents();
+        //                rowsToClear.ClearFormats();
+        //            }
+
+        //            // Add data
+        //            for (int i = 0; i < dataGridView1.Rows.Count; i++)
+        //            {
+        //                for (int j = 0; j < dataGridView1.Columns.Count; j++)
+        //                {
+        //                    object value = dataGridView1.Rows[i].Cells[j].Value;
+        //                    Excel.Range cell = (Excel.Range)worksheet.Cells[i + 2, j + 1];
+        //                    cell.Value = value;
+
+        //                    // Apply formatting based on DataGridView cell
+        //                    if (dataGridView1.Rows[i].Cells[j].Style.ForeColor == System.Drawing.Color.Green)
+        //                    {
+        //                        cell.Font.Color = Excel.XlRgbColor.rgbGreen;
+        //                    }
+        //                    else if (dataGridView1.Rows[i].Cells[j].Style.ForeColor == System.Drawing.Color.Red)
+        //                    {
+        //                        cell.Font.Color = Excel.XlRgbColor.rgbRed;
+        //                    }
+
+        //                    // Copy alignment
+        //                    if (dataGridView1.Rows[i].Cells[j].Style.Alignment == DataGridViewContentAlignment.MiddleRight)
+        //                    {
+        //                        cell.HorizontalAlignment = Excel.XlHAlign.xlHAlignRight;
+        //                    }
+        //                    else if (dataGridView1.Rows[i].Cells[j].Style.Alignment == DataGridViewContentAlignment.MiddleLeft)
+        //                    {
+        //                        cell.HorizontalAlignment = Excel.XlHAlign.xlHAlignLeft;
+        //                    }
+        //                    else
+        //                    {
+        //                        cell.HorizontalAlignment = Excel.XlHAlign.xlHAlignCenter;
+        //                    }
+
+        //                    // Format numbers
+        //                    if (value != null && (value is double || value is decimal || value is int))
+        //                    {
+        //                        cell.NumberFormat = "0.00";
+        //                    }
+        //                }
+        //            }
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            Console.WriteLine($"Error exporting to Excel: {ex.Message}");
+        //        }
+        //    });
+
+        public void SymbolExportToExcel() =>
+    System.Threading.ThreadPool.QueueUserWorkItem(_ =>
+    {
+        try
+        {
+            bool fileopen = CommonClass.IsFileLocked(excelFilePath);
+            if (fileopen && (workbook == null || worksheet == null))
             {
-
-                bool fileopen = CommonClass.IsFileLocked(excelFilePath);
-                if (fileopen && (workbook == null || worksheet == null))
-                {
-                    try
-                    {
-                        // Try to get running Excel instance
-                        try
-                        {
-                            excelApp = GetRunningExcelInstance();
-                            if (excelApp != null)
-                            {
-                                excelApp.UserControl = true; // Prevent Excel from taking focus
-                                excelApp.DisplayAlerts = false; // Suppress Excel alerts
-                                excelApp.IgnoreRemoteRequests = true; // Ignore Request of File Open/Write in same Instance
-                                ((Excel.AppEvents_Event)excelApp).NewWorkbook += ExcelApp_NewWorkbook;
-                            }
-                        }
-                        catch (COMException)
-                        {
-                            Console.WriteLine("Excel is not running.");
-                            return;
-                        }
-
-                        if (excelApp == null)
-                        {
-                            Console.WriteLine("Excel is not running.");
-                            return;
-                        }
-
-                        // Get the active workbook
-                        workbook = excelApp.ActiveWorkbook;
-
-                        if (workbook == null)
-                        {
-                            Console.WriteLine("No workbook is currently open.");
-                            return;
-                        }
-
-                        // Get "Sheet1"
-                        worksheet = workbook.Sheets["Sheet1"] as Excel.Worksheet;
-
-                        if (worksheet == null)
-                        {
-                            Console.WriteLine("Sheet1 not found.");
-                            return;
-                        }
-                    }
-                    catch (Exception)
-                    {
-                        workbook = null;
-                        worksheet = null;
-                        return;
-                    }
-                }
-
-                if (workbook == null || worksheet == null || fileopen == false)
-                {
-                    CleanupExcelResources();
-                    return;
-                }
-
-                if (dataGridView1 == null || worksheet == null || workbook == null || excelApp == null)
-                {
-                    return;
-                }
-
+                // Try to get running Excel instance
                 try
                 {
-
-                    // Add headers
-                    for (int i = 0; i < dataGridView1.Columns.Count; i++)
+                    excelApp = GetRunningExcelInstance();
+                    if (excelApp != null)
                     {
-                        worksheet.Cells[1, i + 1] = dataGridView1.Columns[i].HeaderText;
-                        ((Excel.Range)worksheet.Cells[1, i + 1]).Font.Bold = true;
-                    }
-
-                    int rowsToPreserve = dataGridView1.Rows.Count;
-                    if (dataGridView1.AllowUserToAddRows)
-                    {
-                        // Exclude the "new row" if present
-                        if (dataGridView1.Rows.Count > 0 && dataGridView1.Rows[dataGridView1.Rows.Count - 1].IsNewRow)
-                        {
-                            rowsToPreserve--;
-                        }
-                    }
-
-                    // Clear all rows except header and first N rows (where N = rowsToPreserve)
-                    Excel.Range usedRange = worksheet.UsedRange;
-                    if (usedRange != null && usedRange.Rows.Count > 1 + rowsToPreserve)
-                    {
-                        // Calculate the range to clear (rows after header + preserved rows)
-                        int firstRowToClear = 2 + rowsToPreserve; // Row numbers start at 1 in Excel
-                        int lastRowInSheet = usedRange.Rows.Count;
-
-                        Excel.Range rowsToClear = worksheet.Range[
-                            worksheet.Cells[firstRowToClear, 1],
-                            worksheet.Cells[lastRowInSheet, usedRange.Columns.Count]];
-
-                        rowsToClear.ClearContents();
-                        rowsToClear.ClearFormats();
-                    }
-
-                    // Add data
-                    for (int i = 0; i < dataGridView1.Rows.Count; i++)
-                    {
-                        for (int j = 0; j < dataGridView1.Columns.Count; j++)
-                        {
-                            object value = dataGridView1.Rows[i].Cells[j].Value;
-                            Excel.Range cell = (Excel.Range)worksheet.Cells[i + 2, j + 1];
-                            cell.Value = value;
-
-                            // Apply formatting based on DataGridView cell
-                            if (dataGridView1.Rows[i].Cells[j].Style.ForeColor == System.Drawing.Color.Green)
-                            {
-                                cell.Font.Color = Excel.XlRgbColor.rgbGreen;
-                            }
-                            else if (dataGridView1.Rows[i].Cells[j].Style.ForeColor == System.Drawing.Color.Red)
-                            {
-                                cell.Font.Color = Excel.XlRgbColor.rgbRed;
-                            }
-
-                            // Copy alignment
-                            if (dataGridView1.Rows[i].Cells[j].Style.Alignment == DataGridViewContentAlignment.MiddleRight)
-                            {
-                                cell.HorizontalAlignment = Excel.XlHAlign.xlHAlignRight;
-                            }
-                            else if (dataGridView1.Rows[i].Cells[j].Style.Alignment == DataGridViewContentAlignment.MiddleLeft)
-                            {
-                                cell.HorizontalAlignment = Excel.XlHAlign.xlHAlignLeft;
-                            }
-                            else
-                            {
-                                cell.HorizontalAlignment = Excel.XlHAlign.xlHAlignCenter;
-                            }
-
-                            // Format numbers
-                            if (value != null && (value is double || value is decimal || value is int))
-                            {
-                                cell.NumberFormat = "0.00";
-                            }
-                        }
+                        // Set all properties in one go
+                        excelApp.UserControl = true; // Prevent Excel from taking focus
+                        excelApp.DisplayAlerts = false; // Suppress Excel alerts
+                        excelApp.IgnoreRemoteRequests = true; // Ignore Request of File Open/Write in same Instance
+                        ((Excel.AppEvents_Event)excelApp).NewWorkbook += ExcelApp_NewWorkbook;
                     }
                 }
-                catch (Exception ex)
+                catch (COMException)
                 {
-                    Console.WriteLine($"Error exporting to Excel: {ex.Message}");
+                    Console.WriteLine("Excel is not running.");
+                    return;
                 }
-            });
+
+                if (excelApp == null)
+                {
+                    Console.WriteLine("Excel is not running.");
+                    return;
+                }
+
+                // Get the active workbook
+                workbook = excelApp.ActiveWorkbook;
+
+                if (workbook == null)
+                {
+                    Console.WriteLine("No workbook is currently open.");
+                    return;
+                }
+
+                // Get "Sheet1"
+                worksheet = workbook.Sheets["Sheet1"] as Excel.Worksheet;
+
+                if (worksheet == null)
+                {
+                    Console.WriteLine("Sheet1 not found.");
+                    return;
+                }
+            }
+
+            if (workbook == null || worksheet == null || !fileopen || excelApp == null)
+            {
+                CleanupExcelResources();
+                return;
+            }
+
+            // Prepare data in memory first
+            int columnCount = dataGridView1.Columns.Count;
+            int rowCount = dataGridView1.Rows.Count;
+            if (dataGridView1.AllowUserToAddRows && rowCount > 0 &&
+                dataGridView1.Rows[rowCount - 1].IsNewRow)
+            {
+                rowCount--;
+            }
+
+            // Write headers in one operation
+            object[,] headers = new object[1, columnCount];
+            for (int i = 0; i < columnCount; i++)
+            {
+                headers[0, i] = dataGridView1.Columns[i].HeaderText;
+            }
+
+            Excel.Range headerRange = worksheet.Range[
+                worksheet.Cells[1, 1],
+                worksheet.Cells[1, columnCount]];
+            headerRange.Value = headers;
+            headerRange.Font.Bold = true;
+
+            // Clear old data (except headers and preserved rows)
+            Excel.Range usedRange = worksheet.UsedRange;
+            if (usedRange != null && usedRange.Rows.Count > 1 + rowCount)
+            {
+                int firstRowToClear = 2 + rowCount;
+                int lastRowInSheet = usedRange.Rows.Count;
+
+                Excel.Range rowsToClear = worksheet.Range[
+                    worksheet.Cells[firstRowToClear, 1],
+                    worksheet.Cells[lastRowInSheet, usedRange.Columns.Count]];
+
+                rowsToClear.Clear();
+            }
+
+            // Prepare data for bulk write
+            object[,] data = new object[rowCount, columnCount];
+            List<Excel.Range> coloredCells = new List<Excel.Range>();
+            List<Excel.Range> rightAlignedCells = new List<Excel.Range>();
+            List<Excel.Range> leftAlignedCells = new List<Excel.Range>();
+            List<Excel.Range> numberCells = new List<Excel.Range>();
+
+            for (int i = 0; i < rowCount; i++)
+            {
+                for (int j = 0; j < columnCount; j++)
+                {
+                    DataGridViewCell dgvCell = dataGridView1.Rows[i].Cells[j];
+                    object value = dgvCell.Value;
+                    data[i, j] = value;
+
+                    // Track cells that need special formatting
+                    Excel.Range cell = (Excel.Range)worksheet.Cells[i + 2, j + 1];
+
+                    if (dgvCell.Style.ForeColor == System.Drawing.Color.Green)
+                    {
+                        coloredCells.Add(cell);
+                        cell.Font.Color = Excel.XlRgbColor.rgbGreen;
+                    }
+                    else if (dgvCell.Style.ForeColor == System.Drawing.Color.Red)
+                    {
+                        coloredCells.Add(cell);
+                        cell.Font.Color = Excel.XlRgbColor.rgbRed;
+                    }
+
+                    if (dgvCell.Style.Alignment == DataGridViewContentAlignment.MiddleRight)
+                    {
+                        rightAlignedCells.Add(cell);
+                    }
+                    else if (dgvCell.Style.Alignment == DataGridViewContentAlignment.MiddleLeft)
+                    {
+                        leftAlignedCells.Add(cell);
+                    }
+
+                    if (value != null && (value is double || value is decimal || value is int))
+                    {
+                        numberCells.Add(cell);
+                    }
+                }
+            }
+
+            // Bulk write data
+            if (rowCount > 0)
+            {
+                Excel.Range dataRange = worksheet.Range[
+                    worksheet.Cells[2, 1],
+                    worksheet.Cells[rowCount + 1, columnCount]];
+                dataRange.Value = data;
+            }
+
+            // Apply formatting in bulk where possible
+            if (rightAlignedCells.Count > 0)
+            {
+                worksheet.Range[rightAlignedCells.ToArray()].HorizontalAlignment = Excel.XlHAlign.xlHAlignRight;
+            }
+            if (leftAlignedCells.Count > 0)
+            {
+                worksheet.Range[leftAlignedCells.ToArray()].HorizontalAlignment = Excel.XlHAlign.xlHAlignLeft;
+            }
+            if (numberCells.Count > 0)
+            {
+                worksheet.Range[numberCells.ToArray()].NumberFormat = "0.00";
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error exporting to Excel: {ex.Message}");
+        }
+    });
 
         private void deleteToolStripMenuItem_Click(object sender, EventArgs e)
         {

@@ -1,5 +1,4 @@
-﻿using DocumentFormat.OpenXml.Presentation;
-using SocketIOClient;
+﻿using SocketIOClient;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -8,11 +7,9 @@ using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Net.Sockets;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Windows.Forms;
-using static Live_Rate_Application.Live_Rate;
 
 namespace Live_Rate_Application.MarketWatch
 {
@@ -25,7 +22,6 @@ namespace Live_Rate_Application.MarketWatch
         public static List<string> selectedSymbols = new List<string>();
         private Dictionary<string, DataGridViewRow> symbolRowMap = new Dictionary<string, DataGridViewRow>();
         private DataGridView editableMarketWatchGridView;
-        int RowsToUpdate;
         public static readonly string AppFolder = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "Live Rate");
@@ -280,7 +276,6 @@ namespace Live_Rate_Application.MarketWatch
                             DataSource = symbolMaster,
                             Value = null
                         };
-                        RowsToUpdate = 1;
                     }
 
                     UpdateGridWithLatestData();
@@ -395,6 +390,35 @@ namespace Live_Rate_Application.MarketWatch
         {
             try
             {
+                int symbolCount = selectedSymbols.Count;
+                int rowCount = editableMarketWatchGridView.Rows.Count;
+
+                if (symbolCount != rowCount)
+                {
+                    // Clear the selectedSymbols list
+                    selectedSymbols.Clear();
+
+                    // Iterate through each row in the gridview
+                    foreach (DataGridViewRow row in editableMarketWatchGridView.Rows)
+                    {
+                        // Skip if the row is the new row (if applicable)
+                        if (!row.IsNewRow)
+                        {
+                            // Get the value from the "Symbol" column
+                            var symbolValue = row.Cells["Symbol"].Value;
+
+                            // Add to selectedSymbols if the value is not null
+                            if (symbolValue != null)
+                            {
+                                selectedSymbols.Add(symbolValue.ToString());
+                            }
+                        }
+                    }
+                }
+
+                if (selectedSymbols.Count == 0)
+                    MessageBox.Show("Please Select Atleast one Symbol for Save","Alert",MessageBoxButtons.OK,MessageBoxIcon.Exclamation);
+
                 // Show save file dialog
                 using (var saveDialog = new SaveFileDialog())
                 {
