@@ -1096,6 +1096,8 @@ namespace Live_Rate_Application
             saveToolStripMenuItem.Enabled = true;
             newMarketWatchMenuItem.Enabled = false;
 
+            statusLabel.Text = "Connected...";
+
             foreach (ToolStripMenuItem item in openCTRLOToolStripMenuItem.DropDownItems)
             {
                 item.Enabled = true;
@@ -1167,6 +1169,7 @@ namespace Live_Rate_Application
 
         private void DefaultToolStripMenuItem_Click(object sender, EventArgs e)
         {
+            toolsMenuItem.Enabled = true;
             isLoadedSymbol = false;
             LiveRateGrid();
         }
@@ -1184,12 +1187,14 @@ namespace Live_Rate_Application
             saveToolStripMenuItem.Enabled = false;
         }
 
-        private void saveToolStripMenuItem_Click(object sender, EventArgs e)
+        public void saveToolStripMenuItem_Click(object sender, EventArgs e)
         {
             try
             {
                 EditableMarketWatchGrid editableMarketWatchGrid = new EditableMarketWatchGrid();
                 editableMarketWatchGrid.SaveSymbols();
+
+                saveToolStripMenuItem.Enabled = false;
             }
             catch (Exception ex)
             {

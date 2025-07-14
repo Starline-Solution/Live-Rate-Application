@@ -416,6 +416,12 @@ namespace Live_Rate_Application.MarketWatch
 
                         // Save to the user-selected filename
                         File.WriteAllText(saveDialog.FileName, encryptedJson);
+
+                        selectedSymbols.Clear();
+
+                        var _liveRateForm = Application.OpenForms.OfType<Live_Rate>().FirstOrDefault();
+
+                        _liveRateForm.saveToolStripMenuItem.Enabled = false;
                     }
                 }
             }

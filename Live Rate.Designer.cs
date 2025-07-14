@@ -33,6 +33,7 @@ namespace Live_Rate_Application
             this.newMarketWatchMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.saveToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.openCTRLOToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.deleteToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.dataGridView1 = new System.Windows.Forms.DataGridView();
             this.Tools = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.exportToXSLXToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -42,7 +43,6 @@ namespace Live_Rate_Application
             this.headerPanel = new System.Windows.Forms.Panel();
             this.titleLabel = new System.Windows.Forms.Label();
             this.toolTip = new System.Windows.Forms.ToolTip(this.components);
-            this.deleteToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.mainMenu.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridView1)).BeginInit();
             this.Tools.SuspendLayout();
@@ -103,7 +103,7 @@ namespace Live_Rate_Application
             // newMarketWatchMenuItem
             // 
             this.newMarketWatchMenuItem.Name = "newMarketWatchMenuItem";
-            this.newMarketWatchMenuItem.Size = new System.Drawing.Size(267, 28);
+            this.newMarketWatchMenuItem.Size = new System.Drawing.Size(231, 28);
             this.newMarketWatchMenuItem.Text = "New      (CTRL+N)";
             this.newMarketWatchMenuItem.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             this.newMarketWatchMenuItem.ToolTipText = "Click to open new Marketwatch";
@@ -112,7 +112,7 @@ namespace Live_Rate_Application
             // saveToolStripMenuItem
             // 
             this.saveToolStripMenuItem.Name = "saveToolStripMenuItem";
-            this.saveToolStripMenuItem.Size = new System.Drawing.Size(267, 28);
+            this.saveToolStripMenuItem.Size = new System.Drawing.Size(231, 28);
             this.saveToolStripMenuItem.Text = "Save     (CTRL+S)";
             this.saveToolStripMenuItem.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             this.saveToolStripMenuItem.ToolTipText = "Click to Save new Marketwatch";
@@ -121,8 +121,15 @@ namespace Live_Rate_Application
             // openCTRLOToolStripMenuItem
             // 
             this.openCTRLOToolStripMenuItem.Name = "openCTRLOToolStripMenuItem";
-            this.openCTRLOToolStripMenuItem.Size = new System.Drawing.Size(267, 28);
-            this.openCTRLOToolStripMenuItem.Text = "View     (CTRL+ALT+O)";
+            this.openCTRLOToolStripMenuItem.Size = new System.Drawing.Size(231, 28);
+            this.openCTRLOToolStripMenuItem.Text = "View";
+            // 
+            // deleteToolStripMenuItem
+            // 
+            this.deleteToolStripMenuItem.Name = "deleteToolStripMenuItem";
+            this.deleteToolStripMenuItem.Size = new System.Drawing.Size(231, 28);
+            this.deleteToolStripMenuItem.Text = "Delete";
+            this.deleteToolStripMenuItem.Click += new System.EventHandler(this.deleteToolStripMenuItem_Click);
             // 
             // dataGridView1
             // 
@@ -231,13 +238,6 @@ namespace Live_Rate_Application
             this.titleLabel.TabIndex = 0;
             this.titleLabel.Text = "LIVE RATES";
             // 
-            // deleteToolStripMenuItem
-            // 
-            this.deleteToolStripMenuItem.Name = "deleteToolStripMenuItem";
-            this.deleteToolStripMenuItem.Size = new System.Drawing.Size(267, 28);
-            this.deleteToolStripMenuItem.Text = "Delete";
-            this.deleteToolStripMenuItem.Click += new System.EventHandler(this.deleteToolStripMenuItem_Click);
-            // 
             // Live_Rate
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
@@ -284,7 +284,7 @@ namespace Live_Rate_Application
         private Panel headerPanel;
         private System.Windows.Forms.Label titleLabel;
         private ToolTip toolTip;
-        private ToolStripMenuItem saveToolStripMenuItem;
+        public ToolStripMenuItem saveToolStripMenuItem;
         private ToolStripMenuItem openCTRLOToolStripMenuItem;
         private ToolStripMenuItem deleteToolStripMenuItem;
     }
