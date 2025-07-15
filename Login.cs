@@ -275,5 +275,6 @@ namespace Live_Rate_Application
             }
             CredentialManager credentialManager = new CredentialManager(unameTextBox.Text, passwordtextBox.Text, saveCredential.Checked ? true : false);
         }
+
     }
 }

@@ -179,7 +179,7 @@ namespace Live_Rate_Application
             this.titleLabel.Name = "titleLabel";
             this.titleLabel.Size = new System.Drawing.Size(617, 50);
             this.titleLabel.TabIndex = 0;
-            this.titleLabel.Text = "Welcome Back";
+            this.titleLabel.Text = "Welcome";
             this.titleLabel.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // logoPictureBox

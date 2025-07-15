@@ -1,4 +1,5 @@
 ﻿using DocumentFormat.OpenXml.Drawing.Diagrams;
+using DocumentFormat.OpenXml.ExtendedProperties;
 using Live_Rate_Application.MarketWatch;
 using Microsoft.Win32;
 using SocketIOClient;
@@ -7,6 +8,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -16,6 +18,7 @@ using System.Security.Principal;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Threading;
 using System.Windows.Forms;
 using Excel = Microsoft.Office.Interop.Excel;
 
@@ -68,6 +71,7 @@ namespace Live_Rate_Application
         {
             InitializeComponent();
 
+
             CommonClass = new Helper.Common(this);
             CommonClass.StartInternetMonitor();
 
@@ -87,7 +91,6 @@ namespace Live_Rate_Application
             this.WindowState = FormWindowState.Maximized;
             dataGridView1.Dock = DockStyle.Fill;
             this.FormClosed += LiveRate_FormClosed;
-            saveToolStripMenuItem.Enabled = false;
         }
 
         private void Live_Rate_KeyDown(object sender, KeyEventArgs e)
@@ -95,7 +98,7 @@ namespace Live_Rate_Application
             if (e.KeyCode == Keys.Escape)
             {
                 this.Close(); // Close the login form
-                Application.Exit(); // Terminate the application
+                System.Windows.Forms.Application.Exit(); // Terminate the application
             }
 
             if (e.Control && e.KeyCode == Keys.N && marketWatchViewMode != MarketWatchViewMode.New) 
@@ -121,6 +124,7 @@ namespace Live_Rate_Application
         {
             dataGridView1.ContextMenuStrip = Tools;
         }
+
 
         private void UpdateUI(Action action)
         {
@@ -176,7 +180,7 @@ namespace Live_Rate_Application
 
             GC.Collect();
             GC.WaitForPendingFinalizers();
-            Application.Exit();
+            System.Windows.Forms.Application.Exit();
         }
 
         private void DataGridView1_CellMouseDown(object sender, DataGridViewCellMouseEventArgs e)
@@ -188,11 +192,11 @@ namespace Live_Rate_Application
             }
         }
 
-        private void ExportToXSLXToolStripMenuItem_Click(object sender, EventArgs e) =>
-            // Run Excel operations in a separate thread
-            System.Threading.ThreadPool.QueueUserWorkItem(_ =>
+        public void exportExcelOnClick() 
+        {
+            // Run Excel operations in a separate thread with unsafe queuing
+            ThreadPool.QueueUserWorkItem(_ =>
             {
-
                 // Ensure documents folder exists
                 Directory.CreateDirectory(Path.GetDirectoryName(excelFilePath));
 
@@ -225,26 +229,21 @@ namespace Live_Rate_Application
                         }
                         finally
                         {
-                            // 3. Proper cleanup in reverse order
+                            // Proper cleanup in reverse order
                             if (tempWorksheet != null) Marshal.ReleaseComObject(tempWorksheet);
                             if (tempWorkbook != null) Marshal.ReleaseComObject(tempWorkbook);
                             if (tempApp != null) Marshal.ReleaseComObject(tempApp);
 
-                            // 4. Force garbage collection
+                            // Force garbage collection
                             GC.Collect();
                             GC.WaitForPendingFinalizers();
                             GC.Collect();
                         }
 
-
-                        // Release COM objects
-                        Marshal.ReleaseComObject(tempWorksheet);
-                        Marshal.ReleaseComObject(tempWorkbook);
-                        Marshal.ReleaseComObject(tempApp);
-
                         Helper.DesktopShortcut desktopShortcut = new Helper.DesktopShortcut();
                         ModifyRegistry();
                     }
+
 
                     // Open the file using Excel interop
                     excelApp = new Excel.Application
@@ -259,21 +258,21 @@ namespace Live_Rate_Application
                     workbook = excelApp.Workbooks.Open(excelFilePath);
                     worksheet = (Excel.Worksheet)workbook.Sheets[1];
 
-                    if (!isLoadedSymbol)
-                    {
-                        // Flush any data collected so far
-                        RefreshExcelFromDataTable(marketDataTable);
-                    }
-                    else 
-                    {
-                        SymbolExportToExcel();
-                    }
+                    // Flush any data collected so far
+                    RefreshExcelFromDataTable(marketDataTable);
                 }
                 catch (Exception ex)
                 {
+                    // Note: Need to marshal this back to UI thread if you want to show it in UI
                     Console.WriteLine("Excel export error: " + ex.Message);
                 }
-            });
+            }, null);
+        }
+
+        private void ExportToXSLXToolStripMenuItem_Click(object sender, EventArgs e) 
+        {
+                exportExcelOnClick();
+        }
 
         private void RefreshExcelFromDataTable(DataTable data) =>
             // Run Excel operations in a background thread to prevent UI freezing
@@ -807,21 +806,11 @@ namespace Live_Rate_Application
         {
             if (dataGridView1.InvokeRequired)
             {
-                if (!isLoadedSymbol)
-                {
-                    dataGridView1.BeginInvoke(new Action(UpdateGridInternal));
-                }
-                else 
-                {
-                    dataGridView1.BeginInvoke(new Action(UpdateGridBySelectedSymbol));
-                }
+                dataGridView1.BeginInvoke(new Action(UpdateGridInternal));
             }
             else
             {
-                if (!isLoadedSymbol)
-                    UpdateGridInternal();
-                else
-                    UpdateGridBySelectedSymbol();
+                UpdateGridInternal();
             }
         }
 
@@ -876,14 +865,34 @@ namespace Live_Rate_Application
                     {"DGINRSPOT", "Domestic Gold INR Spot"}
             };
 
+            var rows = marketDataTable.Rows.Cast<DataRow>().ToList();
+
             // First update the DataTable with proper instrument names
-            foreach (DataRow row in marketDataTable.Rows)
+            foreach (DataRow row in rows)
             {
+
+                if (row.RowState == DataRowState.Deleted || row.RowState == DataRowState.Detached)
+                    continue;
+
+                if (isLoadedSymbol == true)
+                {
+                    string symbol = row[0]?.ToString();
+
+                    // Check if symbol exists in selectedSymbols
+                    if (!selectedSymbols.Contains(symbol))
+                    {
+                        row.Delete(); // Mark the row for deletion
+                        FixedRowCount--;
+                        continue;
+                    }
+                }
+
                 if (row[0] != null && instruments.TryGetValue(row[0].ToString(), out string displayName))
                 {
                     row[0] = displayName;
                 }
             }
+
 
             if (dataGridView1.IsDisposed) return;
 
@@ -1016,7 +1025,14 @@ namespace Live_Rate_Application
             finally
             {
                 dataGridView1.ResumeLayout();
-                RefreshExcelFromDataTable(marketDataTable);
+                if (!isLoadedSymbol)
+                {
+                    RefreshExcelFromDataTable(marketDataTable);
+                }
+                else
+                {
+                    SymbolExportToExcel();
+                }
             }
         }
 
@@ -1093,7 +1109,6 @@ namespace Live_Rate_Application
             toolsMenuItem.Enabled = false;
 
             // Update menu items
-            saveToolStripMenuItem.Enabled = true;
             newMarketWatchMenuItem.Enabled = false;
 
             statusLabel.Text = "Connected...";
@@ -1184,22 +1199,6 @@ namespace Live_Rate_Application
             dataGridView1.BringToFront();
             dataGridView1.Focus();
             newMarketWatchMenuItem.Enabled = true;
-            saveToolStripMenuItem.Enabled = false;
-        }
-
-        public void saveToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                EditableMarketWatchGrid editableMarketWatchGrid = new EditableMarketWatchGrid();
-                editableMarketWatchGrid.SaveSymbols();
-
-                saveToolStripMenuItem.Enabled = false;
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Problem while Saving File for {ex}","Saving Error",MessageBoxButtons.OK,MessageBoxIcon.Error);
-            }
         }
 
         private void MenuLoad()
@@ -1232,7 +1231,8 @@ namespace Live_Rate_Application
                 foreach (string fileName in fileNames)
                 {
                     ToolStripMenuItem menuItem = new ToolStripMenuItem(fileName);
-                    menuItem.Click += (sender, e) => {
+                    menuItem.Click += (sender, e) =>
+                    {
                         // Handle file selection here
                         string selectedFile = (sender as ToolStripMenuItem).Text;
                         LoadSymbol(Path.Combine(selectedFile + ".slt"));
@@ -1240,6 +1240,22 @@ namespace Live_Rate_Application
                     };
                     openCTRLOToolStripMenuItem.DropDownItems.Add(menuItem);
                 }
+            }
+            catch (DirectoryNotFoundException) 
+            {
+                // Clear existing menu items
+                openCTRLOToolStripMenuItem.DropDownItems.Clear();
+                // Add Default menu item with click handler
+                ToolStripMenuItem defaultMenuItem = new ToolStripMenuItem("Default");
+                defaultMenuItem.Click += (sender, e) =>
+                {
+                    var clickedItem = (ToolStripMenuItem)sender;
+                    DefaultToolStripMenuItem_Click(sender, e);
+                    MenuLoad();
+                    SetActiveMenuItem(clickedItem);
+                };
+                defaultMenuItem.Enabled = false;
+                openCTRLOToolStripMenuItem.DropDownItems.Add(defaultMenuItem);
             }
             catch (Exception)
             {
@@ -1283,347 +1299,6 @@ namespace Live_Rate_Application
             MenuLoad();
 
         }
-
-        private void UpdateGridBySelectedSymbol()
-        {
-            int FixedRowCount = 17;
-
-            // Instrument mapping dictionary
-            var instruments = new Dictionary<string, string>
-            {
-                {"XAUUSD", "Gold Spot"},
-                {"XAGUSD3", "Silver Spot"},
-                {"XPTUSD", "Platinum Spot"},
-                {"XPDUSD", "Palladium Spot"},
-                {"INRSPOT", "INR Spot"},
-                {"EURUSD", "EUR/USD"},
-                {"GLD", "Gold Future"},
-                {"SLR", "Silver Future"},
-                {"PTAM", "Platinum AM Fix"},
-                {"PDAM", "Palladium AM Fix"},
-                {"GOLDAM", "Gold AM Fix"},
-                {"SILVERFIX", "Silver Fix"},
-                {"PTPM", "Platinum PM Fix"},
-                {"PDPM", "Palladium PM Fix"},
-                {"GOLDPM", "Gold PM Fix"},
-                {"GOLD", "Gold COMEX"},
-                {"DGINRSPOT", "Domestic Gold INR Spot"}
-            };
-
-            // Create a filtered view of the DataTable with only selected symbols
-            DataTable filteredTable = marketDataTable.Clone();
-
-            foreach (DataRow row in marketDataTable.Rows)
-            {
-                string symbol = row[0]?.ToString();
-
-                // Check if this symbol is in the selectedSymbols list
-                if (selectedSymbols.Contains(symbol))
-                {
-                    // Create a new row in the filtered table
-                    DataRow newRow = filteredTable.NewRow();
-
-                    // Copy all values
-                    for (int i = 0; i < marketDataTable.Columns.Count; i++)
-                    {
-                        newRow[i] = row[i];
-                    }
-
-                    // Update the display name if needed
-                    if (instruments.TryGetValue(symbol, out string displayName))
-                    {
-                        newRow[0] = displayName;
-                    }
-
-                    filteredTable.Rows.Add(newRow);
-                }
-            }
-
-            if (dataGridView1.IsDisposed) return;
-
-            dataGridView1.SuspendLayout();
-            try
-            {
-                // Ensure columns exist
-                if (dataGridView1.Columns.Count == 0)
-                {
-                    InitializeDataGridView();
-
-                    // Set default styles for all columns
-                    var headerStyle = new DataGridViewCellStyle
-                    {
-                        Alignment = DataGridViewContentAlignment.MiddleCenter,
-                        Font = new System.Drawing.Font(dataGridView1.Font.FontFamily, 13.50f, FontStyle.Bold)
-                    };
-
-                    // Set default styles for all columns
-                    var defaultStyle = new DataGridViewCellStyle
-                    {
-                        Alignment = DataGridViewContentAlignment.MiddleCenter,
-                        Font = new System.Drawing.Font(dataGridView1.Font.FontFamily, 15f, FontStyle.Regular)
-                    };
-
-                    foreach (DataGridViewColumn column in dataGridView1.Columns)
-                    {
-                        column.DefaultCellStyle = defaultStyle;
-                        column.HeaderCell.Style = headerStyle;
-                    }
-
-                    if (dataGridView1.Columns.Count > 0)
-                    {
-                        dataGridView1.Columns[0].DefaultCellStyle = headerStyle;
-                        dataGridView1.Columns[0].HeaderCell.Style = headerStyle;
-                    }
-                }
-
-                // Ensure we have exactly 17 rows (or as many as selected symbols)
-                int actualRowCount = Math.Min(FixedRowCount, filteredTable.Rows.Count);
-
-                while (dataGridView1.Rows.Count < actualRowCount)
-                {
-                    dataGridView1.Rows.Add();
-                }
-                while (dataGridView1.Rows.Count > actualRowCount)
-                {
-                    dataGridView1.Rows.RemoveAt(dataGridView1.Rows.Count - 1);
-                }
-
-                // Update cell values with formatting
-                for (int i = 0; i < actualRowCount; i++)
-                {
-                    for (int j = 0; j < dataGridView1.Columns.Count; j++)
-                    {
-                        // Skip Symbol columns (assuming j=0 is Symbol)
-                        if (j == 0 || j == dataGridView1.Columns.Count - 1)
-                        {
-                            dataGridView1.Rows[i].Cells[j].Value = filteredTable.Rows[i][j]?.ToString();
-                            dataGridView1.Rows[i].Cells[j].Style = new DataGridViewCellStyle
-                            {
-                                Alignment = DataGridViewContentAlignment.MiddleLeft,
-                                ForeColor = System.Drawing.Color.Black
-                            };
-                            continue;
-                        }
-
-                        // Get current and new values
-                        object currentValueObj = dataGridView1.Rows[i].Cells[j].Value;
-                        string currentValueStr = currentValueObj?.ToString() ?? string.Empty;
-
-                        // Update cell value
-                        var value = filteredTable.Rows[i][j];
-
-                        if (value != DBNull.Value && double.TryParse(value.ToString(), out double number))
-                        {
-                            dataGridView1.Rows[i].Cells[j].Value = number.ToString("F2");
-                        }
-                        else
-                        {
-                            dataGridView1.Rows[i].Cells[j].Value = string.Empty;
-                        }
-
-                        // Create cell style
-                        var cellStyle = new DataGridViewCellStyle
-                        {
-                            Alignment = DataGridViewContentAlignment.MiddleRight,
-                        };
-
-                        // Try to parse as decimal for comparison
-                        if (decimal.TryParse(currentValueStr, out decimal currentDecimal) &&
-                            decimal.TryParse(filteredTable.Rows[i][j]?.ToString(), out decimal newDecimal))
-                        {
-                            if (newDecimal > currentDecimal)
-                            {
-                                cellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-                                cellStyle.ForeColor = System.Drawing.Color.Green;
-                            }
-                            else if (newDecimal < currentDecimal)
-                            {
-                                cellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-                                cellStyle.ForeColor = System.Drawing.Color.Red;
-                            }
-                        }
-
-                        dataGridView1.Rows[i].Cells[j].Style = cellStyle;
-                        dataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells;
-                    }
-                }
-
-                // Clear remaining rows if we have fewer selected symbols than FixedRowCount
-                for (int i = actualRowCount; i < FixedRowCount; i++)
-                {
-                    for (int j = 0; j < dataGridView1.Columns.Count; j++)
-                    {
-                        if (dataGridView1.Rows[i].Cells[j].Value != null)
-                        {
-                            dataGridView1.Rows[i].Cells[j].Value = DBNull.Value;
-                            dataGridView1.Rows[i].Cells[j].Style = dataGridView1.DefaultCellStyle;
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message);
-            }
-            finally
-            {
-                dataGridView1.ResumeLayout();
-                SymbolExportToExcel(); // Refresh Excel with filtered data
-            }
-        }
-
-        //public void SymbolExportToExcel()=>
-        //    System.Threading.ThreadPool.QueueUserWorkItem(_ =>
-        //    {
-
-        //        bool fileopen = CommonClass.IsFileLocked(excelFilePath);
-        //        if (fileopen && (workbook == null || worksheet == null))
-        //        {
-        //            try
-        //            {
-        //                // Try to get running Excel instance
-        //                try
-        //                {
-        //                    excelApp = GetRunningExcelInstance();
-        //                    if (excelApp != null)
-        //                    {
-        //                        excelApp.UserControl = true; // Prevent Excel from taking focus
-        //                        excelApp.DisplayAlerts = false; // Suppress Excel alerts
-        //                        excelApp.IgnoreRemoteRequests = true; // Ignore Request of File Open/Write in same Instance
-        //                        ((Excel.AppEvents_Event)excelApp).NewWorkbook += ExcelApp_NewWorkbook;
-        //                    }
-        //                }
-        //                catch (COMException)
-        //                {
-        //                    Console.WriteLine("Excel is not running.");
-        //                    return;
-        //                }
-
-        //                if (excelApp == null)
-        //                {
-        //                    Console.WriteLine("Excel is not running.");
-        //                    return;
-        //                }
-
-        //                // Get the active workbook
-        //                workbook = excelApp.ActiveWorkbook;
-
-        //                if (workbook == null)
-        //                {
-        //                    Console.WriteLine("No workbook is currently open.");
-        //                    return;
-        //                }
-
-        //                // Get "Sheet1"
-        //                worksheet = workbook.Sheets["Sheet1"] as Excel.Worksheet;
-
-        //                if (worksheet == null)
-        //                {
-        //                    Console.WriteLine("Sheet1 not found.");
-        //                    return;
-        //                }
-        //            }
-        //            catch (Exception)
-        //            {
-        //                workbook = null;
-        //                worksheet = null;
-        //                return;
-        //            }
-        //        }
-
-        //        if (workbook == null || worksheet == null || fileopen == false)
-        //        {
-        //            CleanupExcelResources();
-        //            return;
-        //        }
-
-        //        if (dataGridView1 == null || worksheet == null || workbook == null || excelApp == null)
-        //        {
-        //            return;
-        //        }
-
-        //        try
-        //        {
-
-        //            // Add headers
-        //            for (int i = 0; i < dataGridView1.Columns.Count; i++)
-        //            {
-        //                worksheet.Cells[1, i + 1] = dataGridView1.Columns[i].HeaderText;
-        //                ((Excel.Range)worksheet.Cells[1, i + 1]).Font.Bold = true;
-        //            }
-
-        //            int rowsToPreserve = dataGridView1.Rows.Count;
-        //            if (dataGridView1.AllowUserToAddRows)
-        //            {
-        //                // Exclude the "new row" if present
-        //                if (dataGridView1.Rows.Count > 0 && dataGridView1.Rows[dataGridView1.Rows.Count - 1].IsNewRow)
-        //                {
-        //                    rowsToPreserve--;
-        //                }
-        //            }
-
-        //            // Clear all rows except header and first N rows (where N = rowsToPreserve)
-        //            Excel.Range usedRange = worksheet.UsedRange;
-        //            if (usedRange != null && usedRange.Rows.Count > 1 + rowsToPreserve)
-        //            {
-        //                // Calculate the range to clear (rows after header + preserved rows)
-        //                int firstRowToClear = 2 + rowsToPreserve; // Row numbers start at 1 in Excel
-        //                int lastRowInSheet = usedRange.Rows.Count;
-
-        //                Excel.Range rowsToClear = worksheet.Range[
-        //                    worksheet.Cells[firstRowToClear, 1],
-        //                    worksheet.Cells[lastRowInSheet, usedRange.Columns.Count]];
-
-        //                rowsToClear.ClearContents();
-        //                rowsToClear.ClearFormats();
-        //            }
-
-        //            // Add data
-        //            for (int i = 0; i < dataGridView1.Rows.Count; i++)
-        //            {
-        //                for (int j = 0; j < dataGridView1.Columns.Count; j++)
-        //                {
-        //                    object value = dataGridView1.Rows[i].Cells[j].Value;
-        //                    Excel.Range cell = (Excel.Range)worksheet.Cells[i + 2, j + 1];
-        //                    cell.Value = value;
-
-        //                    // Apply formatting based on DataGridView cell
-        //                    if (dataGridView1.Rows[i].Cells[j].Style.ForeColor == System.Drawing.Color.Green)
-        //                    {
-        //                        cell.Font.Color = Excel.XlRgbColor.rgbGreen;
-        //                    }
-        //                    else if (dataGridView1.Rows[i].Cells[j].Style.ForeColor == System.Drawing.Color.Red)
-        //                    {
-        //                        cell.Font.Color = Excel.XlRgbColor.rgbRed;
-        //                    }
-
-        //                    // Copy alignment
-        //                    if (dataGridView1.Rows[i].Cells[j].Style.Alignment == DataGridViewContentAlignment.MiddleRight)
-        //                    {
-        //                        cell.HorizontalAlignment = Excel.XlHAlign.xlHAlignRight;
-        //                    }
-        //                    else if (dataGridView1.Rows[i].Cells[j].Style.Alignment == DataGridViewContentAlignment.MiddleLeft)
-        //                    {
-        //                        cell.HorizontalAlignment = Excel.XlHAlign.xlHAlignLeft;
-        //                    }
-        //                    else
-        //                    {
-        //                        cell.HorizontalAlignment = Excel.XlHAlign.xlHAlignCenter;
-        //                    }
-
-        //                    // Format numbers
-        //                    if (value != null && (value is double || value is decimal || value is int))
-        //                    {
-        //                        cell.NumberFormat = "0.00";
-        //                    }
-        //                }
-        //            }
-        //        }
-        //        catch (Exception ex)
-        //        {
-        //            Console.WriteLine($"Error exporting to Excel: {ex.Message}");
-        //        }
-        //    });
 
         public void SymbolExportToExcel() =>
     System.Threading.ThreadPool.QueueUserWorkItem(_ =>
@@ -1677,11 +1352,17 @@ namespace Live_Rate_Application
                 }
             }
 
-            if (workbook == null || worksheet == null || !fileopen || excelApp == null)
+            if (marketDataTable == null || workbook == null || worksheet == null || dataGridView1 == null)
+            {
+                return;
+            }
+
+            if (workbook == null || worksheet == null || fileopen == false)
             {
                 CleanupExcelResources();
                 return;
             }
+
 
             // Prepare data in memory first
             int columnCount = dataGridView1.Columns.Count;
@@ -1747,6 +1428,11 @@ namespace Live_Rate_Application
                         coloredCells.Add(cell);
                         cell.Font.Color = Excel.XlRgbColor.rgbRed;
                     }
+                    else
+                    {
+                        coloredCells.Add(cell);
+                        cell.Font.Color = Excel.XlRgbColor.rgbBlack;
+                    }
 
                     if (dgvCell.Style.Alignment == DataGridViewContentAlignment.MiddleRight)
                     {
@@ -1793,18 +1479,18 @@ namespace Live_Rate_Application
         }
     });
 
-        private void deleteToolStripMenuItem_Click(object sender, EventArgs e)
+        private void DeleteToolStripMenuItem_Click(object sender, EventArgs e)
         {
             if (FileLists == null || FileLists.Count == 0)
             {
-                MessageBox.Show("No files available to delete.", "Information",
+                MessageBox.Show("No Market Watch available to delete.", "Information",
                               MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
             using (var selectionForm = new Form())
             {
-                selectionForm.Text = "Select Files to Delete";
+                selectionForm.Text = "Select Market Watch to Delete";
                 selectionForm.Width = 600;
                 selectionForm.Height = 500;
                 selectionForm.FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -1822,7 +1508,7 @@ namespace Live_Rate_Application
 
                 var headerLabel = new Label
                 {
-                    Text = "Select Files to Delete",
+                    Text = "Select Market Watch to Delete",
                     Dock = DockStyle.Fill,
                     ForeColor = Color.White,
                     TextAlign = ContentAlignment.MiddleLeft,
@@ -1856,7 +1542,7 @@ namespace Live_Rate_Application
                 };
 
                 // Modern column headers
-                listView.Columns.Add("File Name", 300);
+                listView.Columns.Add("Market Watch Name", 300);
                 listView.Columns.Add("Path", 250);
 
                 // Add files to list view
@@ -1934,7 +1620,7 @@ namespace Live_Rate_Application
 
                     if (selectedFiles.Count == 0)
                     {
-                        MessageBox.Show("Please select at least one file to delete.",
+                        MessageBox.Show("Please select at least one Market Watch to delete.",
                                         "No Selection",
                                         MessageBoxButtons.OK,
                                         MessageBoxIcon.Information);
@@ -1942,7 +1628,7 @@ namespace Live_Rate_Application
                     }
 
                     // Modern confirmation dialog
-                    var confirmResult = MessageBox.Show($"Are you sure you want to delete {selectedFiles.Count} file(s)?",
+                    var confirmResult = MessageBox.Show($"Are you sure you want to delete {selectedFiles.Count} Market Watch(s)?",
                                                      "Confirm Deletion",
                                                      MessageBoxButtons.YesNo,
                                                      MessageBoxIcon.Warning,
@@ -1969,7 +1655,7 @@ namespace Live_Rate_Application
 
                         // Modern result display
                         var resultMessage = new StringBuilder();
-                        resultMessage.AppendLine($"Successfully deleted {successCount} file(s).");
+                        resultMessage.AppendLine($"Successfully deleted {successCount} Market Watch(s).");
 
                         if (failedDeletions.Count > 0)
                         {
@@ -2028,8 +1714,7 @@ namespace Live_Rate_Application
                 // Show dialog
                 if (selectionForm.ShowDialog() == DialogResult.OK)
                 {
-                    // Refresh your file list if needed
-                    // FileLists.RemoveAll(f => !File.Exists(f));
+                    DefaultToolStripMenuItem_Click(this,EventArgs.Empty);
                 }
             }
         }
