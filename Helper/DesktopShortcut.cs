@@ -23,7 +23,7 @@ namespace Live_Rate_Application.Helper
 
             shortcut.TargetPath = GetExcelPath();
             shortcut.Arguments = $"{argument} \"{excelFilePath}\"";
-            shortcut.Description = "Open Live Rate with custom argument";
+            shortcut.Description = "Open Live Rate With Admin Privilege";
             shortcut.IconLocation = $"{GetExcelPath()}, 0";
             
             // Save the shortcut first

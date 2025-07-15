@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DocumentFormat.OpenXml.Office.SpreadSheetML.Y2023.MsForms;
+using System;
 using System.Drawing;
 using System.Windows.Forms;
 
@@ -31,7 +32,6 @@ namespace Live_Rate_Application
             this.disconnectToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.marketWatchMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.newMarketWatchMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.saveToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.openCTRLOToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.deleteToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.dataGridView1 = new System.Windows.Forms.DataGridView();
@@ -93,7 +93,6 @@ namespace Live_Rate_Application
             // 
             this.marketWatchMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.newMarketWatchMenuItem,
-            this.saveToolStripMenuItem,
             this.openCTRLOToolStripMenuItem,
             this.deleteToolStripMenuItem});
             this.marketWatchMenuItem.Name = "marketWatchMenuItem";
@@ -109,15 +108,6 @@ namespace Live_Rate_Application
             this.newMarketWatchMenuItem.ToolTipText = "Click to open new Marketwatch";
             this.newMarketWatchMenuItem.Click += new System.EventHandler(this.NewMarketWatchMenuItem_Click);
             // 
-            // saveToolStripMenuItem
-            // 
-            this.saveToolStripMenuItem.Name = "saveToolStripMenuItem";
-            this.saveToolStripMenuItem.Size = new System.Drawing.Size(231, 28);
-            this.saveToolStripMenuItem.Text = "Save     (CTRL+S)";
-            this.saveToolStripMenuItem.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
-            this.saveToolStripMenuItem.ToolTipText = "Click to Save new Marketwatch";
-            this.saveToolStripMenuItem.Click += new System.EventHandler(this.saveToolStripMenuItem_Click);
-            // 
             // openCTRLOToolStripMenuItem
             // 
             this.openCTRLOToolStripMenuItem.Name = "openCTRLOToolStripMenuItem";
@@ -129,7 +119,7 @@ namespace Live_Rate_Application
             this.deleteToolStripMenuItem.Name = "deleteToolStripMenuItem";
             this.deleteToolStripMenuItem.Size = new System.Drawing.Size(231, 28);
             this.deleteToolStripMenuItem.Text = "Delete";
-            this.deleteToolStripMenuItem.Click += new System.EventHandler(this.deleteToolStripMenuItem_Click);
+            this.deleteToolStripMenuItem.Click += new System.EventHandler(this.DeleteToolStripMenuItem_Click);
             // 
             // dataGridView1
             // 
@@ -284,7 +274,6 @@ namespace Live_Rate_Application
         private Panel headerPanel;
         private System.Windows.Forms.Label titleLabel;
         private ToolTip toolTip;
-        public ToolStripMenuItem saveToolStripMenuItem;
         private ToolStripMenuItem openCTRLOToolStripMenuItem;
         private ToolStripMenuItem deleteToolStripMenuItem;
     }

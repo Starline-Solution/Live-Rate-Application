@@ -1,5 +1,4 @@
-﻿using DocumentFormat.OpenXml.Presentation;
-using SocketIOClient;
+﻿using SocketIOClient;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -8,11 +7,9 @@ using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Net.Sockets;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Windows.Forms;
-using static Live_Rate_Application.Live_Rate;
 
 namespace Live_Rate_Application.MarketWatch
 {
@@ -25,7 +22,6 @@ namespace Live_Rate_Application.MarketWatch
         public static List<string> selectedSymbols = new List<string>();
         private Dictionary<string, DataGridViewRow> symbolRowMap = new Dictionary<string, DataGridViewRow>();
         private DataGridView editableMarketWatchGridView;
-        int RowsToUpdate;
         public static readonly string AppFolder = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "Live Rate");
@@ -50,6 +46,7 @@ namespace Live_Rate_Application.MarketWatch
             InitializeDataTable();
             InitializeGrid();
             InitializeSocket();
+            InitializeSaveButton();
             this.KeyDown += EditableMarketWatchGrid_KeyDown;
         }
 
@@ -160,7 +157,11 @@ namespace Live_Rate_Application.MarketWatch
                                 row["Open"] = Convert.ToDecimal(item["Open"]?.ToString() ?? "0");
                                 row["Close"] = Convert.ToDecimal(item["Close"]?.ToString() ?? "0");
                                 row["LTP"] = Convert.ToDecimal(item["LTP"]?.ToString() ?? "0");
-                                row["DateTime"] = DateTime.Parse(item["DateTime"]?.ToString() ?? DateTime.Now.ToString());
+                                row["DateTime"] = DateTime.ParseExact(
+                                    item["DateTime"]?.ToString() ?? DateTime.Now.ToString(),
+                                    "dd/MM/yyyy HH:mm:ss",  // Matches "15/07/2025 17:38:21"
+                                    CultureInfo.InvariantCulture
+                                );
                                 marketWatchDatatable.Rows.Add(row);
                             }
 
@@ -280,7 +281,6 @@ namespace Live_Rate_Application.MarketWatch
                             DataSource = symbolMaster,
                             Value = null
                         };
-                        RowsToUpdate = 1;
                     }
 
                     UpdateGridWithLatestData();
@@ -395,6 +395,35 @@ namespace Live_Rate_Application.MarketWatch
         {
             try
             {
+                int symbolCount = selectedSymbols.Count;
+                int rowCount = editableMarketWatchGridView.Rows.Count;
+
+                if (symbolCount != rowCount)
+                {
+                    // Clear the selectedSymbols list
+                    selectedSymbols.Clear();
+
+                    // Iterate through each row in the gridview
+                    foreach (DataGridViewRow row in editableMarketWatchGridView.Rows)
+                    {
+                        // Skip if the row is the new row (if applicable)
+                        if (!row.IsNewRow)
+                        {
+                            // Get the value from the "Symbol" column
+                            var symbolValue = row.Cells["Symbol"].Value;
+
+                            // Add to selectedSymbols if the value is not null
+                            if (symbolValue != null)
+                            {
+                                selectedSymbols.Add(symbolValue.ToString());
+                            }
+                        }
+                    }
+                }
+
+                if (selectedSymbols.Count == 0)
+                    MessageBox.Show("Please Select Atleast one Symbol for Save","Alert",MessageBoxButtons.OK,MessageBoxIcon.Exclamation);
+
                 // Show save file dialog
                 using (var saveDialog = new SaveFileDialog())
                 {
@@ -403,6 +432,9 @@ namespace Live_Rate_Application.MarketWatch
                     saveDialog.Title = "Save Symbol List";
                     saveDialog.DefaultExt = ".slt";
                     saveDialog.AddExtension = true;
+
+                    if (!Directory.Exists(AppFolder)) 
+                        Directory.CreateDirectory(AppFolder);
 
                     // If user selected a file
                     if (saveDialog.ShowDialog() == DialogResult.OK)
@@ -419,9 +451,6 @@ namespace Live_Rate_Application.MarketWatch
 
                         selectedSymbols.Clear();
 
-                        var _liveRateForm = Application.OpenForms.OfType<Live_Rate>().FirstOrDefault();
-
-                        _liveRateForm.saveToolStripMenuItem.Enabled = false;
                     }
                 }
             }
@@ -479,6 +508,31 @@ namespace Live_Rate_Application.MarketWatch
             //    Value = null // this set default null
             //};
         }
+
+        // Add this to your EditableMarketWatchGrid class
+        private void InitializeSaveButton()
+        {
+            // Create a Panel at the bottom of the grid
+            var panel = new Panel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 30,
+                BackColor = SystemColors.Control
+            };
+
+            // Create the save button
+            var button = new Button
+            {
+                Text = "Save Symbols",
+                Dock = DockStyle.Right,
+                Width = 120,
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+            button.Click += (sender, e) => SaveSymbols();
+
+            panel.Controls.Add(button);
+            this.Controls.Add(panel);
+        }
     }
 
     // Custom ComboBoxCell class with enhanced search
@@ -508,11 +562,15 @@ namespace Live_Rate_Application.MarketWatch
                     var editingControl = this.DataGridView.EditingControl as DataGridViewComboBoxEditingControl;
                     if (editingControl != null)
                     {
+                        // Reset state for this cell
+                        ResetState();
+
                         editingControl.DroppedDown = true;
                         editingControl.KeyPress += EditingControl_KeyPress;
                         editingControl.TextUpdate += EditingControl_TextUpdate;
                         editingControl.KeyDown += EditingControl_KeyDown;
                         editingControl.SelectedIndexChanged += EditingControl_SelectedIndexChanged;
+                        editingControl.Leave += EditingControl_Leave; // Add Leave event to clean up
                     }
                 }
             }
@@ -538,6 +596,7 @@ namespace Live_Rate_Application.MarketWatch
             {
                 _isDroppedDown = false;
                 editingControl.DroppedDown = false;
+                ResetState();
                 this.DataGridView.EndEdit();
                 _searchText = string.Empty;
             }
@@ -548,11 +607,29 @@ namespace Live_Rate_Application.MarketWatch
                     // Select the first item when Enter is pressed
                     this.Value = editingControl.Items[0];
                     _searchText = string.Empty;
+                    ResetState();
                     editingControl.DroppedDown = false;
                     this.DataGridView.EndEdit();
                 }
             }
         }
+        private void EditingControl_Leave(object sender, EventArgs e)
+        {
+            // Clean up event handlers and reset state when leaving the control
+            var editingControl = sender as DataGridViewComboBoxEditingControl;
+            if (editingControl != null)
+            {
+                editingControl.KeyPress -= EditingControl_KeyPress;
+                editingControl.TextUpdate -= EditingControl_TextUpdate;
+                editingControl.KeyDown -= EditingControl_KeyDown;
+                editingControl.SelectedIndexChanged -= EditingControl_SelectedIndexChanged;
+                editingControl.Leave -= EditingControl_Leave;
+            }
+            ResetState();
+            _isDroppedDown = false;
+            this.DataGridView.EndEdit();
+        }
+
 
         private void EditingControl_TextUpdate(object sender, EventArgs e)
         {
@@ -620,6 +697,15 @@ namespace Live_Rate_Application.MarketWatch
             {
                 comboBox.DroppedDown = false;
             }
+        }
+
+        private void ResetState()
+        {
+            _searchText = string.Empty;
+            _matchedIndexes.Clear();
+            _matchIndex = 0;
+            _lastKeyChar = '\0';
+            _lastKeyPressTime = DateTime.MinValue;
         }
     }
 }

@@ -2,6 +2,7 @@
 using System;
 using System.IO;
 using System.Net.NetworkInformation;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -46,7 +47,9 @@ namespace Live_Rate_Application.Helper
                     {
                         var reply = ping.Send("8.8.8.8", 3000); // Google DNS
                         return reply.Status == IPStatus.Success;
+
                     }
+
                 }
                 return false;
             }
@@ -60,7 +63,7 @@ namespace Live_Rate_Application.Helper
         {
             internetCheckTimer = new System.Windows.Forms.Timer
             {
-                Interval = 1000 // check every 1 seconds
+                Interval = 2000 // check every 2 seconds
             };
             internetCheckTimer.Tick += InternetCheckTimer_Tick;
             internetCheckTimer.Start();
