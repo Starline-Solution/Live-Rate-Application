@@ -63,7 +63,7 @@ namespace Live_Rate_Application.Helper
         {
             internetCheckTimer = new System.Windows.Forms.Timer
             {
-                Interval = 2000 // check every 2 seconds
+                Interval = 1000 // check every 1 seconds
             };
             internetCheckTimer.Tick += InternetCheckTimer_Tick;
             internetCheckTimer.Start();
