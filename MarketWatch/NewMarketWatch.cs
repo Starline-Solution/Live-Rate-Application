@@ -19,15 +19,16 @@ namespace Live_Rate_Application.MarketWatch
         private SocketIO socket = null;
         private List<string> symbolMaster = new List<string>();
         private bool isSymbolMasterInitialized = false;
-        public static List<string> selectedSymbols = new List<string>();
-        private Dictionary<string, DataGridViewRow> symbolRowMap = new Dictionary<string, DataGridViewRow>();
+        public List<string> selectedSymbols = new List<string>();
+        public static EditableMarketWatchGrid CurrentInstance { get; private set; }
+        public bool isEditMarketWatch = false;
         private DataGridView editableMarketWatchGridView;
         public static readonly string AppFolder = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "Live Rate");
         public static readonly string SymbolListFile = Path.Combine(AppFolder, "symbols.slt");
         public static readonly string passphrase = "v@d{4NME4sOSywXF";
-
+        public string saveFileName; 
 
         protected override void Dispose(bool disposing)
         {
@@ -43,10 +44,11 @@ namespace Live_Rate_Application.MarketWatch
 
         public EditableMarketWatchGrid()
         {
+            CurrentInstance = this;
             InitializeDataTable();
             InitializeGrid();
             InitializeSocket();
-            InitializeSaveButton();
+            // InitializeSaveButton();
             this.KeyDown += EditableMarketWatchGrid_KeyDown;
         }
 
@@ -54,7 +56,7 @@ namespace Live_Rate_Application.MarketWatch
         {
             if (e.Control && e.KeyCode == Keys.S)
             {
-                SaveSymbols();
+                SaveSymbols(selectedSymbols);
             }
         }
 
@@ -180,6 +182,20 @@ namespace Live_Rate_Application.MarketWatch
                             }
 
                             UpdateGridWithLatestData();
+
+                            if (symbolMaster != null && isEditMarketWatch == true)
+                            {
+
+                                Live_Rate defaultGridInstance = Live_Rate.CurrentInstance;
+
+                                if (defaultGridInstance != null && defaultGridInstance.selectedSymbols != null)
+                                {
+                                    UpdateGridBySymbol(defaultGridInstance.selectedSymbols);
+                                }
+
+                                isEditMarketWatch = false;
+
+                            }    
                         }
                     });
 
@@ -199,37 +215,6 @@ namespace Live_Rate_Application.MarketWatch
                 Console.WriteLine("❌ Connection error: " + ex.Message);
             }
         }
-
-        //private void AddManualEditableRow()
-        //{
-        //    Columns.Clear();
-
-        //    // Create searchable combo box column
-        //    var symbolColumn = new DataGridViewComboBoxColumn
-        //    {
-        //        Name = "Symbol",
-        //        HeaderText = "Symbol",
-        //        DataSource = new BindingList<string>(symbolMaster),
-        //        DisplayStyle = DataGridViewComboBoxDisplayStyle.DropDownButton,
-        //        FlatStyle = FlatStyle.Flat,
-        //        Width = 120,
-        //        AutoComplete = true,
-        //    };
-
-        //    Columns.Add(symbolColumn);
-
-        //    // Add standard columns
-        //    string[] columns = { "Bid", "Ask", "High", "Low", "Open", "Close", "LTP", "DateTime" };
-        //    Array.ForEach(columns, col => Columns.Add(col, col));
-
-        //    // Add empty row manually
-        //    int rowIndex = this.Rows.Add();
-        //    this.Rows[rowIndex].Cells["Symbol"] = new DataGridViewComboBoxCell
-        //    {
-        //        DataSource = symbolMaster,
-        //        Value = null // this set default null
-        //    };
-        //}
 
         private void EditableMarketWatchGrid_CurrentCellDirtyStateChanged(object sender, EventArgs e)
         {
@@ -391,17 +376,17 @@ namespace Live_Rate_Application.MarketWatch
             }
         }
 
-        public void SaveSymbols()
+        public void SaveSymbols(List<string> SymbolList)
         {
             try
             {
-                int symbolCount = selectedSymbols.Count;
+                int symbolCount = SymbolList.Count;
                 int rowCount = editableMarketWatchGridView.Rows.Count;
 
                 if (symbolCount != rowCount)
                 {
                     // Clear the selectedSymbols list
-                    selectedSymbols.Clear();
+                    SymbolList.Clear();
 
                     // Iterate through each row in the gridview
                     foreach (DataGridViewRow row in editableMarketWatchGridView.Rows)
@@ -415,43 +400,73 @@ namespace Live_Rate_Application.MarketWatch
                             // Add to selectedSymbols if the value is not null
                             if (symbolValue != null)
                             {
-                                selectedSymbols.Add(symbolValue.ToString());
+                                SymbolList.Add(symbolValue.ToString());
                             }
                         }
                     }
                 }
 
-                if (selectedSymbols.Count == 0)
-                    MessageBox.Show("Please Select Atleast one Symbol for Save","Alert",MessageBoxButtons.OK,MessageBoxIcon.Exclamation);
-
-                // Show save file dialog
-                using (var saveDialog = new SaveFileDialog())
+                if (SymbolList.Count == 0)
                 {
-                    saveDialog.InitialDirectory = AppFolder;  // Set default directory
-                    saveDialog.Filter = "Symbol List Files (*.slt)|*.slt|All files (*.*)|*.*";
-                    saveDialog.Title = "Save Symbol List";
-                    saveDialog.DefaultExt = ".slt";
-                    saveDialog.AddExtension = true;
+                    MessageBox.Show("Please Select Atleast one Symbol for Save", "Alert", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                    return;
+                }
 
-                    if (!Directory.Exists(AppFolder)) 
-                        Directory.CreateDirectory(AppFolder);
-
-                    // If user selected a file
-                    if (saveDialog.ShowDialog() == DialogResult.OK)
+                if (saveFileName == null)
+                {// Show save file dialog
+                    using (var saveDialog = new SaveFileDialog())
                     {
-                        string json = JsonSerializer.Serialize(selectedSymbols);
-                        string encryptedJson = CryptoHelper.Encrypt(json, passphrase);
+                        saveDialog.InitialDirectory = AppFolder;  // Set default directory
+                        saveDialog.Filter = "Symbol List Files (*.slt)|*.slt|All files (*.*)|*.*";
+                        saveDialog.Title = "Save Symbol List";
+                        saveDialog.DefaultExt = ".slt";
+                        saveDialog.AddExtension = true;
 
-                        // Ensure directory exists (should already exist from AppFolder)
                         if (!Directory.Exists(AppFolder))
                             Directory.CreateDirectory(AppFolder);
 
-                        // Save to the user-selected filename
-                        File.WriteAllText(saveDialog.FileName, encryptedJson);
+                        // If user selected a file
+                        if (saveDialog.ShowDialog() == DialogResult.OK)
+                        {
+                            string json = JsonSerializer.Serialize(SymbolList);
+                            string encryptedJson = CryptoHelper.Encrypt(json, passphrase);
 
-                        selectedSymbols.Clear();
+                            // Ensure directory exists (should already exist from AppFolder)
+                            if (!Directory.Exists(AppFolder))
+                                Directory.CreateDirectory(AppFolder);
 
+
+                            // Save to the user-selected filename
+                            File.WriteAllText(saveDialog.FileName, encryptedJson);
+
+                            SymbolList.Clear();
+
+                            saveFileName = Path.GetFileNameWithoutExtension(saveDialog.FileName);
+
+
+                            MessageBox.Show($"{Path.GetFileNameWithoutExtension(saveDialog.FileName)} Marketwatch Save Successfully", "MarketWatch Save", MessageBoxButtons.OK);
+
+                        }
                     }
+                }
+                else
+                {
+                    string json = JsonSerializer.Serialize(SymbolList);
+                    string encryptedJson = CryptoHelper.Encrypt(json, passphrase);
+
+                    // Ensure directory exists (should already exist from AppFolder)
+                    if (!Directory.Exists(AppFolder))
+                        Directory.CreateDirectory(AppFolder);
+
+                    saveFileName = Path.Combine(AppFolder, $"{saveFileName}.slt");
+                    // Save to the user-selected filename
+                    File.WriteAllText(saveFileName, encryptedJson);
+
+                    SymbolList.Clear();
+
+                    MessageBox.Show($"{Path.GetFileNameWithoutExtension(saveFileName)} Marketwatch Update Successfully", "MarketWatch Save", MessageBoxButtons.OK);
+
+                    saveFileName = Path.GetFileNameWithoutExtension(saveFileName);
                 }
             }
             catch (Exception ex)
@@ -459,11 +474,16 @@ namespace Live_Rate_Application.MarketWatch
                 MessageBox.Show($"Problem While Saving File: {ex.Message}", "Saving Error",
                                 MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+            finally 
+            {
+                selectedSymbols = SymbolList;
+            }
         }
 
         private void AddManualEditableRow()
         {
-            Columns.Clear();
+            if (Columns != null)
+                Columns.Clear();
 
             // Create searchable combo box column with enhanced features
             var symbolColumn = new DataGridViewComboBoxColumn
@@ -509,29 +529,66 @@ namespace Live_Rate_Application.MarketWatch
             //};
         }
 
-        // Add this to your EditableMarketWatchGrid class
-        private void InitializeSaveButton()
+        private void InitializeRowCells(DataGridViewRow row)
         {
-            // Create a Panel at the bottom of the grid
-            var panel = new Panel
+            // Set default values for all cells except Symbol
+            foreach (DataGridViewCell cell in row.Cells)
             {
-                Dock = DockStyle.Bottom,
-                Height = 30,
-                BackColor = SystemColors.Control
-            };
+                if (cell.OwningColumn.Name != "Symbol")
+                {
+                    cell.Value = DBNull.Value;
+                }
+            }
+        }
 
-            // Create the save button
-            var button = new Button
+
+        public void UpdateGridBySymbol(List<string> symbols)
+        {
+            selectedSymbols.Clear();
+            selectedSymbols = symbols; // Filter valid symbols
+
+            editableMarketWatchGridView.Rows.Clear();
+            editableMarketWatchGridView.Columns.Clear();
+
+            InitializeGrid();
+            AddManualEditableRow();
+            InitializeSocket();
+
+            try
             {
-                Text = "Save Symbols",
-                Dock = DockStyle.Right,
-                Width = 120,
-                TextAlign = ContentAlignment.MiddleCenter
-            };
-            button.Click += (sender, e) => SaveSymbols();
 
-            panel.Controls.Add(button);
-            this.Controls.Add(panel);
+                // Add new row and get its index
+                int rowIndex = 0;
+                // Add symbol rows (only for valid symbols)
+                foreach (var symbol in selectedSymbols)
+                {
+
+                    // Get reference to the actual cell in the grid (not creating a new instance)
+                    var cell = (DataGridViewComboBoxCell)editableMarketWatchGridView.Rows[rowIndex].Cells["Symbol"];
+
+                    cell.DataSource = symbolMaster;
+                    cell.Value = symbol;
+
+                    // Initialize other cells to prevent null reference issues
+                    InitializeRowCells(editableMarketWatchGridView.Rows[rowIndex]);
+
+                    rowIndex++;
+                }
+
+                //// Add blank row for new entries
+                //int newRowIndex = editableMarketWatchGridView.Rows.Add();
+                //editableMarketWatchGridView.Rows[newRowIndex].Cells["Symbol"] = new DataGridViewComboBoxCell
+                //{
+                //    DataSource = symbolMaster,
+                //    Value = null
+                //};
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error updating grid: {ex.Message}");
+            }
+
+            UpdateGridWithLatestData();
         }
     }
 
@@ -613,6 +670,7 @@ namespace Live_Rate_Application.MarketWatch
                 }
             }
         }
+
         private void EditingControl_Leave(object sender, EventArgs e)
         {
             // Clean up event handlers and reset state when leaving the control
@@ -629,7 +687,6 @@ namespace Live_Rate_Application.MarketWatch
             _isDroppedDown = false;
             this.DataGridView.EndEdit();
         }
-
 
         private void EditingControl_TextUpdate(object sender, EventArgs e)
         {

@@ -8,6 +8,7 @@ namespace Live_Rate_Application
     partial class Live_Rate
     {
         private System.ComponentModel.IContainer components = null;
+        private ToolStripControlHost editMarketWatchHost; // Added this declaration
 
         protected override void Dispose(bool disposing)
         {
@@ -38,16 +39,20 @@ namespace Live_Rate_Application
             this.Tools = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.exportToXSLXToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.refreshToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.statusStrip = new System.Windows.Forms.StatusStrip();
             this.statusLabel = new System.Windows.Forms.ToolStripStatusLabel();
             this.headerPanel = new System.Windows.Forms.Panel();
             this.titleLabel = new System.Windows.Forms.Label();
+            this.bottomPanel = new System.Windows.Forms.Panel();
+            this.panelStatusStrip = new System.Windows.Forms.StatusStrip();
+            this.editMarketWatchButton = new System.Windows.Forms.Button();
+            this.editMarketWatchHost = new System.Windows.Forms.ToolStripControlHost(this.editMarketWatchButton);
             this.toolTip = new System.Windows.Forms.ToolTip(this.components);
             this.mainMenu.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridView1)).BeginInit();
             this.Tools.SuspendLayout();
-            this.statusStrip.SuspendLayout();
             this.headerPanel.SuspendLayout();
+            this.bottomPanel.SuspendLayout();
+            this.panelStatusStrip.SuspendLayout();
             this.SuspendLayout();
             // 
             // mainMenu
@@ -57,11 +62,35 @@ namespace Live_Rate_Application
             this.mainMenu.ImageScalingSize = new System.Drawing.Size(20, 20);
             this.mainMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.toolsMenuItem,
+            this.editMarketWatchHost,
             this.marketWatchMenuItem});
             this.mainMenu.Location = new System.Drawing.Point(0, 30);
             this.mainMenu.Name = "mainMenu";
             this.mainMenu.Size = new System.Drawing.Size(1536, 31);
             this.mainMenu.TabIndex = 0;
+            this.mainMenu.Padding = new Padding(0); // Remove default padding
+            this.mainMenu.GripMargin = new Padding(0); // Remove grip margin
+            this.mainMenu.LayoutStyle = ToolStripLayoutStyle.HorizontalStackWithOverflow;
+            // 
+            // editMarketWatchHost
+            // 
+            this.editMarketWatchHost.Alignment = ToolStripItemAlignment.Right;
+            this.editMarketWatchHost.Margin = new Padding(5, 0, 10, 0);
+            // 
+            // editMarketWatchButton
+            // 
+            this.editMarketWatchButton.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
+            this.editMarketWatchButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.editMarketWatchButton.FlatAppearance.BorderSize = 0;
+            this.editMarketWatchButton.ForeColor = System.Drawing.Color.Black;
+            this.editMarketWatchButton.BackColor = System.Drawing.Color.Transparent;
+            this.editMarketWatchButton.Location = new System.Drawing.Point(1400, 3);
+            this.editMarketWatchButton.Name = "editMarketWatchButton";
+            this.editMarketWatchButton.Size = new System.Drawing.Size(133, 24);
+            this.editMarketWatchButton.TabIndex = 1;
+            this.editMarketWatchButton.Text = "Edit";
+            this.editMarketWatchButton.Visible = false;
+            this.editMarketWatchButton.Click += new System.EventHandler(this.EditMarketWatchButton_Click);
             // 
             // toolsMenuItem
             // 
@@ -186,24 +215,10 @@ namespace Live_Rate_Application
             this.refreshToolStripMenuItem.Text = "Refresh Data";
             this.refreshToolStripMenuItem.Click += new System.EventHandler(this.RefreshToolStripMenuItem_Click);
             // 
-            // statusStrip
-            // 
-            this.statusStrip.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(240)))), ((int)(((byte)(240)))), ((int)(((byte)(240)))));
-            this.statusStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
-            this.statusStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.statusLabel});
-            this.statusStrip.Location = new System.Drawing.Point(0, 821);
-            this.statusStrip.Name = "statusStrip";
-            this.statusStrip.Padding = new System.Windows.Forms.Padding(1, 0, 19, 0);
-            this.statusStrip.Size = new System.Drawing.Size(1536, 26);
-            this.statusStrip.TabIndex = 2;
-            // 
             // statusLabel
             // 
-            this.statusLabel.Font = new System.Drawing.Font("Segoe UI", 9F);
             this.statusLabel.Name = "statusLabel";
-            this.statusLabel.Size = new System.Drawing.Size(67, 20);
-            this.statusLabel.Text = "Ready at";
+            this.statusLabel.Size = new System.Drawing.Size(0, 20);
             // 
             // headerPanel
             // 
@@ -218,15 +233,35 @@ namespace Live_Rate_Application
             // 
             // titleLabel
             // 
-            this.titleLabel.AutoSize = true;
-            this.titleLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.titleLabel.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.titleLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 13F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.titleLabel.ForeColor = System.Drawing.Color.White;
-            this.titleLabel.Location = new System.Drawing.Point(16, 6);
-            this.titleLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.titleLabel.Location = new System.Drawing.Point(0, 0);
             this.titleLabel.Name = "titleLabel";
-            this.titleLabel.Size = new System.Drawing.Size(97, 17);
+            this.titleLabel.Size = new System.Drawing.Size(1536, 30);
             this.titleLabel.TabIndex = 0;
-            this.titleLabel.Text = "LIVE RATES";
+            this.titleLabel.Text = "LIVE RATE";
+            this.titleLabel.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // bottomPanel
+            // 
+            this.bottomPanel.Controls.Add(this.panelStatusStrip);
+            this.bottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
+            this.bottomPanel.Location = new System.Drawing.Point(0, 821);
+            this.bottomPanel.Name = "bottomPanel";
+            this.bottomPanel.Size = new System.Drawing.Size(1536, 26);
+            this.bottomPanel.TabIndex = 4;
+            // 
+            // panelStatusStrip
+            // 
+            this.panelStatusStrip.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.panelStatusStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
+            this.panelStatusStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.statusLabel});
+            this.panelStatusStrip.Location = new System.Drawing.Point(0, 0);
+            this.panelStatusStrip.Name = "panelStatusStrip";
+            this.panelStatusStrip.Size = new System.Drawing.Size(1536, 26);
+            this.panelStatusStrip.TabIndex = 0;
             // 
             // Live_Rate
             // 
@@ -236,7 +271,7 @@ namespace Live_Rate_Application
             this.Controls.Add(this.dataGridView1);
             this.Controls.Add(this.mainMenu);
             this.Controls.Add(this.headerPanel);
-            this.Controls.Add(this.statusStrip);
+            this.Controls.Add(this.bottomPanel);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MainMenuStrip = this.mainMenu;
             this.Margin = new System.Windows.Forms.Padding(4);
@@ -248,13 +283,13 @@ namespace Live_Rate_Application
             this.mainMenu.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridView1)).EndInit();
             this.Tools.ResumeLayout(false);
-            this.statusStrip.ResumeLayout(false);
-            this.statusStrip.PerformLayout();
             this.headerPanel.ResumeLayout(false);
-            this.headerPanel.PerformLayout();
+            this.bottomPanel.ResumeLayout(false);
+            this.bottomPanel.PerformLayout();
+            this.panelStatusStrip.ResumeLayout(false);
+            this.panelStatusStrip.PerformLayout();
             this.ResumeLayout(false);
             this.PerformLayout();
-
         }
 
         #endregion
@@ -269,12 +304,15 @@ namespace Live_Rate_Application
         private System.Windows.Forms.ContextMenuStrip Tools;
         private System.Windows.Forms.ToolStripMenuItem exportToXSLXToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem refreshToolStripMenuItem;
-        private System.Windows.Forms.StatusStrip statusStrip;
         private System.Windows.Forms.ToolStripStatusLabel statusLabel;
         private Panel headerPanel;
         private System.Windows.Forms.Label titleLabel;
         private ToolTip toolTip;
         private ToolStripMenuItem openCTRLOToolStripMenuItem;
         private ToolStripMenuItem deleteToolStripMenuItem;
+        private Button editMarketWatchButton;
+        private StatusStrip panelStatusStrip;
+        private Panel bottomPanel;
+        //private ToolStripControlHost editMarketWatchHost;
     }
 }
