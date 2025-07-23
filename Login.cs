@@ -1,6 +1,7 @@
 ﻿using DocumentFormat.OpenXml.Office2010.Word.DrawingShape;
 using Live_Rate_Application.Helper;
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Net;
 using System.Net.Http;
@@ -116,48 +117,81 @@ namespace Live_Rate_Application
                 {
                     try
                     {
-                        string apiUrl = "http://18.133.220.200:9202/api/userlogin";
+                        string apiUrl = "http://35.176.5.121:1001/ClientAuth/login";
                         string jsonData = JsonSerializer.Serialize(loginData);
                         var content = new StringContent(jsonData, Encoding.UTF8, "application/json");
 
                         HttpResponseMessage response = await client.PostAsync(apiUrl, content);
 
-                        if (response.IsSuccessStatusCode)
+                        string responseContent = await response.Content.ReadAsStringAsync();
+
+                        using (JsonDocument doc = JsonDocument.Parse(responseContent))
                         {
-                            string responseContent = await response.Content.ReadAsStringAsync();
+                            var root = doc.RootElement;
 
-                            using (JsonDocument doc = JsonDocument.Parse(responseContent))
+                            if (response.IsSuccessStatusCode)
                             {
-                                var root = doc.RootElement;
-
-                                string token = root.GetProperty("token").GetString();
-                                var user = root.GetProperty("user");
-                                string username = user.GetProperty("username").GetString();
-                                bool active = user.GetProperty("active").GetBoolean();
-
-                                if (active)
+                                bool isSuccess = root.GetProperty("isSuccess").GetBoolean();
+                                if (isSuccess)
                                 {
-                                    Live_Rate live_Rate = new Live_Rate();
-                                    live_Rate.Show();
-                                    SaveCredential();
-                                    this.Hide();
+                                    var data = root.GetProperty("data");
+                                    string username = data.GetProperty("UserName").GetString();
+                                    bool isActive = data.GetProperty("IsActive").GetBoolean();
+
+                                    if (isActive)
+                                    {
+                                        Live_Rate live_Rate = new Live_Rate();
+                                        live_Rate.Show();
+                                        SaveCredential();
+                                        try
+                                        {
+                                            if (root.TryGetProperty("SymbolName", out JsonElement symbolArray) && symbolArray.ValueKind == JsonValueKind.Array)
+                                            {
+                                                List<string> symbols = new List<string>();
+
+                                                foreach (JsonElement item in symbolArray.EnumerateArray())
+                                                {
+                                                    string value = item.GetString();
+                                                    if (!string.IsNullOrEmpty(value))
+                                                    {
+                                                        symbols.Add(value);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        catch (KeyNotFoundException ex)
+                                        {
+                                            MessageBox.Show(ex.Message);
+                                        }
+                                        this.Hide();
+                                    }
+                                    else
+                                    {
+                                        MessageBox.Show("Subscription Expired.",
+                                            "Authorization Failed",
+                                            MessageBoxButtons.OK,
+                                            MessageBoxIcon.Error);
+                                    }
                                 }
                                 else
                                 {
-                                    MessageBox.Show("Subscription Expired.",
-                                           "Authorization Failed",
-                                           MessageBoxButtons.OK,
-                                           MessageBoxIcon.Error);
+                                    string message = root.GetProperty("message").GetString();
+                                    MessageBox.Show(message ?? "Login failed.",
+                                        "Authentication Failed",
+                                        MessageBoxButtons.OK,
+                                        MessageBoxIcon.Exclamation);
                                 }
                             }
+                            else
+                            {
+                                string message = root.GetProperty("message").GetString();
+                                MessageBox.Show(message ?? "Login failed.",
+                                    "Authentication Failed",
+                                    MessageBoxButtons.OK,
+                                    MessageBoxIcon.Exclamation);
+                            }
                         }
-                        else
-                        {
-                            MessageBox.Show("Invalid username or password.",
-                                           "Authentication Failed",
-                                           MessageBoxButtons.OK,
-                                           MessageBoxIcon.Exclamation);
-                        }
+
                     }
                     catch (Exception ex)
                     {
