@@ -152,7 +152,7 @@ namespace Live_Rate_Application
                                                 foreach (JsonElement item in symbolArray.EnumerateArray())
                                                 {
                                                     string value = item.GetString();
-                                                    if (!string.IsNullOrEmpty(value))
+                                                    if (string.IsNullOrEmpty(value))
                                                     {
                                                         symbols.Add(value);
                                                     }
