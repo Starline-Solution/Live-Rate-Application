@@ -13,6 +13,7 @@ namespace Live_Rate_Application.Helper
         private System.Windows.Forms.Timer internetCheckTimer;
         private bool isInternetAvailable = true;
         private readonly Control uiContext; // store a reference to the UI thread control
+        Live_Rate live_Rate = Live_Rate.CurrentInstance;
 
         public Common(Control control)
         {
@@ -81,32 +82,20 @@ namespace Live_Rate_Application.Helper
             else if (!currentlyAvailable && isInternetAvailable)
             {
                 isInternetAvailable = false;
-                PauseAppLogic();
             }
-        }
-
-        private void PauseAppLogic()
-        {
-            internetCheckTimer.Stop();
-            uiContext.Invoke((MethodInvoker)(() =>
-            {
-                MessageBox.Show("Internet connection lost. The app will pause until it's restored.",
-                                "Internet Disconnected",
-                                MessageBoxButtons.OK,
-                                MessageBoxIcon.Warning);
-            }));
-            internetCheckTimer.Start();
         }
 
         private void ResumeAppLogic()
         {
-            uiContext.Invoke((MethodInvoker)(() =>
+            if (live_Rate != null && live_Rate.socket.Disconnected == true)
             {
-                MessageBox.Show("Internet connection restored. The app will now resume.",
-                                "Internet Connected",
-                                MessageBoxButtons.OK,
-                                MessageBoxIcon.Information);
-            }));
+                live_Rate.socket.ConnectAsync();
+                if (live_Rate.socket.Disconnected == true) 
+                {
+                    MessageBox.Show("Real time Data stop due to unexpected Network change!","Alert",MessageBoxButtons.OK,MessageBoxIcon.Exclamation);
+                }
+            }
+            
         }
 
 

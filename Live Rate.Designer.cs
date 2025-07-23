@@ -152,40 +152,51 @@ namespace Live_Rate_Application
             // 
             // dataGridView1
             // 
+            // Disable user editing features
             this.dataGridView1.AllowUserToAddRows = false;
             this.dataGridView1.AllowUserToDeleteRows = false;
-            this.dataGridView1.BackgroundColor = System.Drawing.Color.White;
-            this.dataGridView1.CellBorderStyle = System.Windows.Forms.DataGridViewCellBorderStyle.SingleHorizontal;
-            dataGridViewCellStyle1.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle1.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(63)))), ((int)(((byte)(81)))), ((int)(((byte)(181)))));
-            dataGridViewCellStyle1.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
-            dataGridViewCellStyle1.ForeColor = System.Drawing.Color.White;
-            dataGridViewCellStyle1.SelectionBackColor = System.Drawing.SystemColors.Highlight;
-            dataGridViewCellStyle1.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
-            dataGridViewCellStyle1.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
-            this.dataGridView1.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle1;
-            this.dataGridView1.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            this.dataGridView1.ContextMenuStrip = this.Tools;
-            dataGridViewCellStyle2.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle2.BackColor = System.Drawing.SystemColors.Window;
-            dataGridViewCellStyle2.Font = new System.Drawing.Font("Segoe UI", 9F);
-            dataGridViewCellStyle2.ForeColor = System.Drawing.SystemColors.ControlText;
-            dataGridViewCellStyle2.SelectionBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(224)))), ((int)(((byte)(178)))));
-            dataGridViewCellStyle2.SelectionForeColor = System.Drawing.Color.Black;
-            dataGridViewCellStyle2.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
-            this.dataGridView1.DefaultCellStyle = dataGridViewCellStyle2;
-            this.dataGridView1.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.dataGridView1.EnableHeadersVisualStyles = false;
-            this.dataGridView1.GridColor = System.Drawing.Color.LightGray;
-            this.dataGridView1.Location = new System.Drawing.Point(0, 61);
-            this.dataGridView1.Margin = new System.Windows.Forms.Padding(4);
-            this.dataGridView1.Name = "dataGridView1";
+            this.dataGridView1.AllowUserToResizeColumns = false;
+            this.dataGridView1.AllowUserToResizeRows = false;
             this.dataGridView1.ReadOnly = true;
+
+            // Visual layout
+            this.dataGridView1.BackgroundColor = Color.White;
+            this.dataGridView1.BorderStyle = BorderStyle.None;
+            this.dataGridView1.CellBorderStyle = DataGridViewCellBorderStyle.Raised;
+            this.dataGridView1.GridColor = Color.Gainsboro;
+            this.dataGridView1.Dock = DockStyle.Fill;
+            this.dataGridView1.EnableHeadersVisualStyles = false;
             this.dataGridView1.RowHeadersVisible = false;
-            this.dataGridView1.RowHeadersWidth = 51;
-            this.dataGridView1.RowTemplate.Height = 28;
-            this.dataGridView1.Size = new System.Drawing.Size(1536, 760);
-            this.dataGridView1.TabIndex = 1;
+            this.dataGridView1.RowTemplate.Height = 36;
+            this.dataGridView1.SelectionMode = DataGridViewSelectionMode.CellSelect;
+            this.dataGridView1.MultiSelect = false;  // Ensure MultiSelect is disabled
+            this.dataGridView1.ClearSelection();
+
+
+            // Column header style
+            DataGridViewCellStyle columnHeaderStyle = new DataGridViewCellStyle();
+            columnHeaderStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            columnHeaderStyle.BackColor = Color.FromArgb(33, 150, 243); // Material Blue
+            columnHeaderStyle.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            columnHeaderStyle.ForeColor = Color.White;
+            columnHeaderStyle.SelectionBackColor = Color.FromArgb(30, 136, 229); // Hover effect
+            columnHeaderStyle.SelectionForeColor = Color.White;
+            columnHeaderStyle.WrapMode = DataGridViewTriState.True;
+            this.dataGridView1.ColumnHeadersDefaultCellStyle = columnHeaderStyle;
+            this.dataGridView1.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+            this.dataGridView1.ColumnHeadersHeight = 40;
+
+            // Default cell style
+            DataGridViewCellStyle cellStyle = new DataGridViewCellStyle();
+            cellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            cellStyle.BackColor = Color.White;
+            cellStyle.Font = new Font("Segoe UI", 10F, FontStyle.Regular);
+            cellStyle.ForeColor = Color.Black;
+            cellStyle.WrapMode = DataGridViewTriState.False;
+            this.dataGridView1.DefaultCellStyle = cellStyle;
+
+            // Alternating row colors
+            this.dataGridView1.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(250, 250, 250);
             this.toolTip.SetToolTip(this.dataGridView1, "Right-click for more options");
             this.dataGridView1.CellMouseDown += new System.Windows.Forms.DataGridViewCellMouseEventHandler(this.DataGridView1_CellMouseDown);
             this.dataGridView1.CellMouseEnter += new System.Windows.Forms.DataGridViewCellEventHandler(this.DataGridView1_CellMouseEnter);
@@ -240,7 +251,7 @@ namespace Live_Rate_Application
             this.titleLabel.Name = "titleLabel";
             this.titleLabel.Size = new System.Drawing.Size(1536, 30);
             this.titleLabel.TabIndex = 0;
-            this.titleLabel.Text = "LIVE RATE";
+            this.titleLabel.Text = "DEFAULT";
             this.titleLabel.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // bottomPanel

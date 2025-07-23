@@ -30,6 +30,9 @@ namespace Live_Rate_Application.MarketWatch
         public static readonly string passphrase = "v@d{4NME4sOSywXF";
         public string saveFileName;
         public bool isDelete = false;
+        private ContextMenuStrip rightClickMenu;
+        private DataGridViewRow rightClickedRow = null;
+
 
         protected override void Dispose(bool disposing)
         {
@@ -82,38 +85,63 @@ namespace Live_Rate_Application.MarketWatch
             this.AllowUserToAddRows = false;
             this.AllowUserToDeleteRows = false;
             this.EditMode = DataGridViewEditMode.EditOnKeystrokeOrF2;
-            this.Font = new System.Drawing.Font("Segoe UI", 10);
+            this.Font = new System.Drawing.Font("Segoe UI", 12);
             this.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            this.ColumnHeadersHeight = 40;
+            this.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+            this.AllowUserToResizeRows = false;
             this.ScrollBars = ScrollBars.Both;
             this.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
             this.ApplyColumnStyles();
+            DataGridViewCellStyle columnHeaderStyle = new DataGridViewCellStyle();
+            columnHeaderStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            this.ColumnHeadersDefaultCellStyle = columnHeaderStyle;
             this.CellValueChanged += EditableMarketWatchGrid_CellValueChanged;
             this.CurrentCellDirtyStateChanged += EditableMarketWatchGrid_CurrentCellDirtyStateChanged;
-            this.CellContentClick += EditableMarketWatchGrid_CellContentClick;
+
+
+            // Add context menu for row deletion
+            rightClickMenu = new ContextMenuStrip();
+            var deleteItem = new ToolStripMenuItem("Delete Symbol");
+            deleteItem.Click += DeleteRow_Click;
+            rightClickMenu.Items.Add(deleteItem);
+
+            // Handle right-click
+            this.CellMouseClick += EditableMarketWatchGrid_CellMouseClick;
+
+
             editableMarketWatchGridView = this;
         }
 
-        private void EditableMarketWatchGrid_CellContentClick(object sender, DataGridViewCellEventArgs e)
+
+        private void EditableMarketWatchGrid_CellMouseClick(object sender, DataGridViewCellMouseEventArgs e)
         {
-            if (e.RowIndex < 0 || e.ColumnIndex < 0)
-                return;
-
-            if (isDelete) return;
-
-            var column = this.Columns[e.ColumnIndex];
-
-            if (column is DataGridViewButtonColumn && column.Name == "Delete") // Ensure column name
+            if (e.Button == MouseButtons.Right && e.RowIndex >= 0)
             {
-                if (this.Rows.Count > e.RowIndex)
+                this.ClearSelection();
+                this.Rows[e.RowIndex].Selected = true;
+
+                rightClickedRow = this.Rows[e.RowIndex];
+                rightClickMenu.Show(Cursor.Position);
+            }
+        }
+
+
+        private void DeleteRow_Click(object sender, EventArgs e)
+        {
+            if (rightClickedRow != null && !rightClickedRow.IsNewRow)
+            {
+                if (rightClickedRow.Index == 0 && editableMarketWatchGridView.RowCount == 2 ) { MessageBox.Show("Can't Delete Single Symbol Update Symbol Name Insted of Delete", "Delete Alert", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;    
+                }
+                var result = MessageBox.Show("Are you sure you want to delete this Symbol?", "Confirm Delete", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning);
+                if (result == DialogResult.OK)
                 {
-                    var result = MessageBox.Show("You Sure Want to Delete this Symbol","Notice",MessageBoxButtons.OKCancel,MessageBoxIcon.Exclamation);
-                    if (result == DialogResult.OK)
-                    {
-                        this.Rows.RemoveAt(e.RowIndex); 
-                    }
-                    isDelete = true;
+                    this.Rows.Remove(rightClickedRow);
+
                 }
             }
+            rightClickedRow = null;
         }
 
         private void ApplyColumnStyles()
@@ -259,12 +287,6 @@ namespace Live_Rate_Application.MarketWatch
             {
                 var selectedValue = grid.Rows[e.RowIndex].Cells["Symbol"].Value?.ToString();
 
-                // Enable the Delete button for this row
-                DataGridViewRow currentRow = grid.Rows[e.RowIndex];
-                currentRow.Cells["Delete"].Value = "Delete";
-                currentRow.Cells["Delete"].ReadOnly = false;
-
-
                 if (!string.IsNullOrEmpty(selectedValue))
                 {
                     // Add Symbol to List for Saving in Future.
@@ -368,7 +390,8 @@ namespace Live_Rate_Application.MarketWatch
             foreach (DataGridViewCell cell in gridRow.Cells)
             {
                 var columnName = cell.OwningColumn.Name;
-                if (columnName == "Symbol" || columnName == "Delete") continue;
+                if (columnName == "Symbol" // || columnName == "Delete"
+                    ) continue;
 
                 object value = dataRow[columnName];
                 if (value == DBNull.Value)
@@ -416,7 +439,11 @@ namespace Live_Rate_Application.MarketWatch
             try
             {
                 int symbolCount = SymbolList.Count;
-                int rowCount = editableMarketWatchGridView.Rows.Count;
+                int rowCount = editableMarketWatchGridView.NewRowIndex >= 0
+                    ? editableMarketWatchGridView.Rows.Count - 1
+                    : editableMarketWatchGridView.Rows.Count;
+
+                rowCount = rowCount - 1;
 
                 if (symbolCount != rowCount)
                 {
@@ -520,19 +547,6 @@ namespace Live_Rate_Application.MarketWatch
             if (Columns != null)
                 Columns.Clear();
 
-            var delCol = new DataGridViewButtonColumn
-            {
-                Name = "Delete",
-                HeaderText = "",
-                Text = "Delete",
-                UseColumnTextForButtonValue = true,
-                Width = 40,
-                FlatStyle = FlatStyle.Flat
-            };
-            delCol.DefaultCellStyle.BackColor = Color.Red;
-            delCol.DefaultCellStyle.ForeColor = Color.White;
-            delCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-
 
             // Create searchable combo box column with enhanced features
             var symbolColumn = new DataGridViewComboBoxColumn
@@ -555,7 +569,6 @@ namespace Live_Rate_Application.MarketWatch
             // Add standard columns
             string[] columns = { "Bid", "Ask", "High", "Low", "Open", "Close", "LTP", "DateTime" };
             Array.ForEach(columns, col => Columns.Add(col, col));
-            Columns.Add(delCol);
 
             // Add empty row manually
             int rowIndex = Rows.Add();
@@ -571,8 +584,14 @@ namespace Live_Rate_Application.MarketWatch
             };
 
             Rows[rowIndex].Cells["Symbol"] = comboCell;
-            Rows[rowIndex].Cells["Delete"].Value = string.Empty;          // no text
-            Rows[rowIndex].Cells["Delete"].ReadOnly = true;               // disables the button
+
+            // After adding all columns
+            foreach (DataGridViewColumn column in this.Columns)
+            {
+                // Make only Symbol column editable
+                column.ReadOnly = column.Name != "Symbol";
+            }
+
 
         }
 

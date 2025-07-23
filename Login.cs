@@ -95,9 +95,6 @@ namespace Live_Rate_Application
                 string uname = unameTextBox.Text.Trim();
                 string password = passwordtextBox.Text.Trim();
 
-                //uname = "admin124";
-                //password = "Ab123456";
-
                 if (string.IsNullOrEmpty(uname) || string.IsNullOrEmpty(password))
                 {
                     MessageBox.Show("Please enter both username and password.",

@@ -32,7 +32,7 @@ namespace Live_Rate_Application
             get { return connectionViewMode == ConnectionViewMode.Connect; }
             set { connectionViewMode = value ? ConnectionViewMode.Connect : ConnectionViewMode.Disconnect; }
         }
-        private SocketIO socket = null;
+        public SocketIO socket = null;
         public static readonly string AppFolder = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "Live Rate");
@@ -40,7 +40,9 @@ namespace Live_Rate_Application
         public List<string> selectedSymbols = new List<string>();
         public List<string> FileLists = new List<string>();
         public string saveFileName;
-        public bool isEdit = false; 
+        public bool isEdit = false;
+        private Dictionary<string, decimal> previousAsks = new Dictionary<string, decimal>();
+        private int symbolColumnFixedWidth = 0;
 
         public static Live_Rate CurrentInstance { get; private set; }
         // DataTable Variables
@@ -306,7 +308,7 @@ namespace Live_Rate_Application
             LiveRateGrid();
 
             MenuLoad();
-            titleLabel.Text = "LIVE RATE";
+            titleLabel.Text = "DEFAULT";
             editMarketWatchButton.Visible = false;
             saveFileName = null;
             editMarketWatchButton.Text = "Edit";
@@ -719,7 +721,7 @@ namespace Live_Rate_Application
                     MenuLoad();
                     saveFileName = null;
                     SetActiveMenuItem(clickedItem);
-                    titleLabel.Text = "LIVE RATE";
+                    titleLabel.Text = "DEFAULT";
                     editMarketWatchButton.Visible = false;
                     editMarketWatchButton.Text = "Edit";
                 };
@@ -1606,28 +1608,6 @@ namespace Live_Rate_Application
         {
             int FixedRowCount = 17;
 
-            // Instrument mapping dictionary
-            var instruments = new Dictionary<string, string>
-                {
-                    {"XAUUSD", "Gold Spot"},
-                    {"XAGUSD3", "Silver Spot"},
-                    {"XPTUSD", "Platinum Spot"},
-                    {"XPDUSD", "Palladium Spot"},
-                    {"INRSPOT", "INR Spot"},
-                    {"EURUSD", "EUR/USD"},
-                    {"GLD", "Gold Future"},
-                    {"SLR", "Silver Future"},
-                    {"PTAM", "Platinum AM Fix"},
-                    {"PDAM", "Palladium AM Fix"},
-                    {"GOLDAM", "Gold AM Fix"},
-                    {"SILVERFIX", "Silver Fix"},
-                    {"PTPM", "Platinum PM Fix"},
-                    {"PDPM", "Palladium PM Fix"},
-                    {"GOLDPM", "Gold PM Fix"},
-                    {"GOLD", "Gold COMEX"},
-                    {"DGINRSPOT", "Domestic Gold INR Spot"}
-            };
-
             var rows = marketDataTable.Rows.Cast<DataRow>().ToList();
 
             bool symbolRowUpdate = false;
@@ -1651,19 +1631,6 @@ namespace Live_Rate_Application
                         FixedRowCount--;
                         continue;
                     }
-                    // Only process rows that are in selectedSymbols
-                    if (row[0] != null && instruments.TryGetValue(row[0].ToString(), out string displayName))
-                    {
-                        row[0] = displayName;
-                    }
-                }
-                else
-                {
-                    // Process all rows when isLoadedSymbol is false
-                    if (row[0] != null && instruments.TryGetValue(row[0].ToString(), out string displayName))
-                    {
-                        row[0] = displayName;
-                    }
                 }
             }
 
@@ -1676,6 +1643,7 @@ namespace Live_Rate_Application
                 // Ensure columns exist
                 if (dataGridView1.Columns.Count == 0)
                 {
+
                     InitializeDataGridView();
 
                     // Set default styles for all columns
@@ -1722,6 +1690,49 @@ namespace Live_Rate_Application
                 {
                     for (int j = 0; j < dataGridView1.Columns.Count; j++)
                     {
+                        if (j == 0)
+                        {
+                            string symbol = marketDataTable.Rows[i][j]?.ToString() ?? "";
+                            int askColumnIndex = 2; // Change this to your actual Ask price column index
+
+                            object askValueObj = marketDataTable.Rows[i][askColumnIndex];
+                            string arrow = "";
+                            Color arrowColor = Color.Black;
+
+                            if (askValueObj != DBNull.Value && decimal.TryParse(askValueObj.ToString(), out decimal currentAsk))
+                            {
+                                if (previousAsks.TryGetValue(symbol, out decimal previousAsk))
+                                {
+                                    if (currentAsk > previousAsk)
+                                    {
+                                        arrow = " ▲";
+                                        arrowColor = Color.Green;
+                                    }
+                                    else if (currentAsk < previousAsk)
+                                    {
+                                        arrow = " ▼";
+                                        arrowColor = Color.Red;
+                                    }
+                                }
+
+                                // Update stored ask
+                                previousAsks[symbol] = currentAsk;
+                            }
+
+                            // Update cell with arrow and symbol
+                            var symbolCell = dataGridView1.Rows[i].Cells[j];
+                            symbolCell.Value = symbol + arrow;
+                            symbolCell.Style = new DataGridViewCellStyle
+                            {
+                                Alignment = DataGridViewContentAlignment.MiddleLeft,
+                                ForeColor = arrowColor,
+                                Font = new Font("Segoe UI", 10.5f, FontStyle.Bold)
+                            };
+
+                            continue;
+                        }
+
+
                         // Skip Symbol columns (assuming j=0 is Symbol)
                         if (j == 0 || j == dataGridView1.Columns.Count - 1)
                         {
@@ -1778,6 +1789,43 @@ namespace Live_Rate_Application
                         dataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells;
                     }
                 }
+                // 🔵 Determine symbol column width only once to avoid flickering
+                if (symbolColumnFixedWidth == 0 && rowsToUpdate > 0)
+                {
+                    int maxSymbolWidth = 0;
+                    using (Graphics g = dataGridView1.CreateGraphics())
+                    {
+                        for (int i = 0; i < rowsToUpdate; i++)
+                        {
+                            var cell = dataGridView1.Rows[i].Cells[0];
+                            var text = cell.Value?.ToString() ?? "";
+                            var font = new Font("Segoe UI", 12.5f, FontStyle.Bold);
+
+                            Size textSize = TextRenderer.MeasureText(text, font);
+                            maxSymbolWidth = Math.Max(maxSymbolWidth, textSize.Width);
+                        }
+
+                        // Add padding
+                        maxSymbolWidth += 20;
+                    }
+
+                    // Store fixed width once
+                    symbolColumnFixedWidth = maxSymbolWidth;
+
+                    // Apply it
+                    if (dataGridView1.Columns.Count > 0)
+                    {
+                        dataGridView1.Columns[0].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                        dataGridView1.Columns[0].Width = symbolColumnFixedWidth;
+                    }
+                }
+                else if (symbolColumnFixedWidth > 0 && dataGridView1.Columns.Count > 0)
+                {
+                    // Always re-apply fixed width to maintain layout
+                    dataGridView1.Columns[0].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                    dataGridView1.Columns[0].Width = symbolColumnFixedWidth;
+                }
+
 
                 // Clear remaining rows
                 for (int i = rowsToUpdate; i < FixedRowCount; i++)
@@ -1834,8 +1882,6 @@ namespace Live_Rate_Application
 
             }
         }
-
-
 
         #endregion
 
