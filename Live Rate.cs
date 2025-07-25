@@ -1,9 +1,11 @@
 ﻿using DocumentFormat.OpenXml.Drawing.Charts;
 using Live_Rate_Application.MarketWatch;
+using Microsoft.Office.Interop.Excel;
 using Microsoft.Win32;
 using SocketIOClient;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Data;
 using System.Diagnostics;
 using System.Drawing;
@@ -28,7 +30,7 @@ namespace Live_Rate_Application
 
         [DllImport("oleaut32.dll", PreserveSig = false)]
         static extern void GetActiveObject(ref Guid rclsid, IntPtr reserved, [MarshalAs(UnmanagedType.IUnknown)] out object ppunk);
-        private readonly Helper.Common CommonClass;
+        private Helper.Common CommonClass;
         // In Live_Rate.cs
         public bool IsConnected
         {
@@ -41,6 +43,8 @@ namespace Live_Rate_Application
         "Live Rate");
         bool isLoadedSymbol = false;
         public List<string> selectedSymbols = new List<string>();
+        private List<string> symbolMaster = new List<string>();
+        private bool isSymbolMasterInitialized = false;
         public List<string> FileLists = new List<string>();
         public string saveFileName;
         public bool isEdit = false;
@@ -51,7 +55,13 @@ namespace Live_Rate_Application
         // DataTable Variables
         static System.Data.DataTable marketDataTable = new System.Data.DataTable();
         private readonly object tableLock = new object();
-        private Button saveButton = new Button();
+        private System.Windows.Forms.Button saveButton = new System.Windows.Forms.Button();
+
+        private Panel panelAddSymbols;
+        private CheckedListBox checkedListSymbols;
+        private System.Windows.Forms.Button btnConfirmAddSymbols;
+        private System.Windows.Forms.Button btnCancelAddSymbols;
+        private System.Windows.Forms.Button btnSelectAllSymbols;
         public class Symbol
         {
             public int Id { get; set; }
@@ -68,7 +78,6 @@ namespace Live_Rate_Application
         }
         private List<Symbol> _symbols = new List<Symbol>();
         public List<string> identifiers;
-
 
         //Excel File Variables
         public Excel.Application excelApp;
@@ -93,34 +102,48 @@ namespace Live_Rate_Application
 
         public Live_Rate()
         {
-            CurrentInstance = this;
+            this.AutoScaleMode = AutoScaleMode.Dpi;
+
             InitializeComponent();
 
-            Login login = Login.CurrentInstance;
-            token = login.token;
-
-            _ = LoadSymbolsAsync();
-
-            CommonClass = new Helper.Common(this);
-            CommonClass.StartInternetMonitor();
-
             this.KeyPreview = true; // Allow form to detect key presses
-            // Enable double buffering for the form
             this.DoubleBuffered = true;
-            // Set control styles for better performance
+
             SetStyle(ControlStyles.OptimizedDoubleBuffer |
                      ControlStyles.AllPaintingInWmPaint |
                      ControlStyles.UserPaint, true);
 
-            MenuLoad();
-
-            InitializeSocket();
-            InitializeDataTable();
-            this.WindowState = FormWindowState.Maximized;
-            dataGridView1.Dock = DockStyle.Fill;
-            this.FormClosed += LiveRate_FormClosed;
-
         }
+
+        private async void Live_Rate_Load(object sender, EventArgs e)
+        {
+            if (!IsInDesignMode())
+            {
+                Login login = Login.CurrentInstance;
+                token = login?.token;
+
+                await LoadSymbolsAsync();
+
+                CommonClass = new Helper.Common(this);
+                CommonClass.StartInternetMonitor();
+
+                MenuLoad();
+                InitializeSocket();
+                InitializeDataTable();
+                this.WindowState = FormWindowState.Maximized;
+                dataGridView1.Dock = DockStyle.Fill;
+                dataGridView1.ContextMenuStrip = Tools;
+
+            }
+        }
+
+
+        private static bool IsInDesignMode()
+        {
+            return LicenseManager.UsageMode == LicenseUsageMode.Designtime ||
+                   Debugger.IsAttached && Process.GetCurrentProcess().ProcessName == "devenv";
+        }
+
 
 
         private async Task LoadSymbolsAsync()
@@ -146,7 +169,6 @@ namespace Live_Rate_Application
                         {
                             _symbols = symbolResponse.Data;
                             identifiers = _symbols.Select(s => s.Identifier).ToList();
-                            //MessageBox.Show("Symbols loaded successfully!", "Success");
                         }
                     }
                     else
@@ -186,11 +208,6 @@ namespace Live_Rate_Application
                 DisconnectToolStripMenuItem_Click(this, EventArgs.Empty);
                 e.Handled = true;
             }
-        }
-
-        private void Live_Rate_Load(object sender, EventArgs e)
-        {
-            dataGridView1.ContextMenuStrip = Tools;
         }
 
         private async void LiveRate_FormClosed(object sender, FormClosedEventArgs e)
@@ -255,7 +272,7 @@ namespace Live_Rate_Application
             if (saveButton != null && this.Controls.Contains(saveButton))
                 this.Controls.Remove(saveButton);
 
-            if (isEdit == false) 
+            if (isEdit == false)
             {
                 selectedSymbols.Clear();
                 saveFileName = null;
@@ -277,20 +294,20 @@ namespace Live_Rate_Application
             }
 
 
-                // Update UI state
+            // Update UI state
             toolsMenuItem.Enabled = false;
             newMarketWatchMenuItem.Enabled = false;
-            editMarketWatchButton.Visible = true;
-            editMarketWatchButton.Text = "Save";
+            saveMarketWatchHost.Visible = true;
+            saveMarketWatchHost.Text = "Save";
             statusLabel.Text = "Connected...";
 
             if (isEdit)
             {
-                titleLabel.Text = $"Edit {saveFileName.ToUpper()} MarketWatch"; 
+                titleLabel.Text = $"Edit {saveFileName.ToUpper()} MarketWatch";
             }
             if (!isEdit)
             {
-                titleLabel.Text = "New MarketWatch"; 
+                titleLabel.Text = "New MarketWatch";
             }
 
 
@@ -373,9 +390,7 @@ namespace Live_Rate_Application
 
             MenuLoad();
             titleLabel.Text = "DEFAULT";
-            editMarketWatchButton.Visible = false;
             saveFileName = null;
-            editMarketWatchButton.Text = "Edit";
             isEdit = false;
         }
 
@@ -406,7 +421,7 @@ namespace Live_Rate_Application
                     BackColor = System.Drawing.Color.FromArgb(0, 120, 215)
                 };
 
-                var headerLabel = new Label
+                var headerLabel = new System.Windows.Forms.Label
                 {
                     Text = "Select Market Watch to Delete",
                     Dock = DockStyle.Fill,
@@ -418,7 +433,7 @@ namespace Live_Rate_Application
                 headerPanel.Controls.Add(headerLabel);
 
                 // Search box for filtering
-                var searchBox = new TextBox
+                var searchBox = new System.Windows.Forms.TextBox
                 {
                     Dock = DockStyle.Top,
                     Height = 30,
@@ -473,20 +488,20 @@ namespace Live_Rate_Application
                 };
 
                 // Modern flat buttons
-                var selectAllButton = new Button
+                var selectAllButton = new System.Windows.Forms.Button
                 {
                     Text = "Select All",
                     FlatStyle = FlatStyle.Flat,
                     BackColor = System.Drawing.Color.White,
                     ForeColor = System.Drawing.Color.FromArgb(0, 120, 215),
                     Height = 30,
-                    Width = 80,
+                    Width = 120,
                     Anchor = AnchorStyles.Left | AnchorStyles.Bottom,
                     Margin = new Padding(10, 10, 0, 10)
                 };
 
 
-                var deleteButton = new Button
+                var deleteButton = new System.Windows.Forms.Button
                 {
                     Text = "Delete Selected",
                     FlatStyle = FlatStyle.Flat,
@@ -498,7 +513,7 @@ namespace Live_Rate_Application
                     Margin = new Padding(0, 10, 90, 10)
                 };
 
-                var cancelButton = new Button
+                var cancelButton = new System.Windows.Forms.Button
                 {
                     Text = "Cancel",
                     FlatStyle = FlatStyle.Flat,
@@ -553,7 +568,7 @@ namespace Live_Rate_Application
                         {
                             if (saveFileName == filePath)
                             {
-                                MessageBox.Show("Can't Delete Open MarketWatch","Delete Error",MessageBoxButtons.OK,MessageBoxIcon.Error);
+                                MessageBox.Show("Can't Delete Open MarketWatch", "Delete Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                                 return;
                             }
                             string fullpath = Path.Combine(AppFolder, $"{filePath}.slt");
@@ -635,9 +650,9 @@ namespace Live_Rate_Application
             }
         }
 
-        private void EditMarketWatchButton_Click(object sender, EventArgs e)
+        private void saveMarketWatchHost_Click(object sender, EventArgs e)
         {
-            if (editMarketWatchButton.Text == "Save")
+            if (saveMarketWatchHost.Text == "Save")
             {
 
                 EditableMarketWatchGrid editableMarketWatchGrid = EditableMarketWatchGrid.CurrentInstance;
@@ -651,11 +666,6 @@ namespace Live_Rate_Application
                 {
                     MessageBox.Show("No active market watch grid found.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
-            }
-            else if (editMarketWatchButton.Text == "Edit MarketWatch")
-            {
-                isEdit = true;
-                NewMarketWatchMenuItem_Click(this, EventArgs.Empty);
             }
         }
         #endregion
@@ -696,7 +706,7 @@ namespace Live_Rate_Application
         #endregion
 
         #region Helper
-        private void UpdateUI(Action action)
+        private void UpdateUI(System.Action action)
         {
             if (this.IsDisposed) return;
 
@@ -748,7 +758,9 @@ namespace Live_Rate_Application
                 {
                     var clickedItem = (ToolStripMenuItem)sender;
                     DefaultToolStripMenuItem_Click(sender, e);
+                    addEditSymbolsToolStripMenuItem.Enabled = false;
                     SetActiveMenuItem(clickedItem);
+                    saveMarketWatchHost.Visible = false;
                 };
                 defaultMenuItem.Enabled = false;
                 openCTRLOToolStripMenuItem.DropDownItems.Add(defaultMenuItem);
@@ -761,13 +773,14 @@ namespace Live_Rate_Application
                     {
                         // Handle file selection here
                         string selectedFile = (sender as ToolStripMenuItem).Text;
-                        saveFileName = selectedFile; 
+                        saveFileName = selectedFile;
+                        addEditSymbolsToolStripMenuItem.Enabled = true;
                         LoadSymbol(Path.Combine(selectedFile + ".slt"));
                         SetActiveMenuItem(menuItem);
                         titleLabel.Text = selectedFile.ToUpper();
-                        editMarketWatchButton.Visible = true;
-                        editMarketWatchButton.Text = "Edit MarketWatch";
                         isEdit = false;
+                        saveMarketWatchHost.Visible = false;
+
                     };
                     openCTRLOToolStripMenuItem.DropDownItems.Add(menuItem);
                 }
@@ -783,11 +796,11 @@ namespace Live_Rate_Application
                     var clickedItem = (ToolStripMenuItem)sender;
                     DefaultToolStripMenuItem_Click(sender, e);
                     MenuLoad();
+                    addEditSymbolsToolStripMenuItem.Enabled = false;
                     saveFileName = null;
                     SetActiveMenuItem(clickedItem);
+                    saveMarketWatchHost.Visible = false;
                     titleLabel.Text = "DEFAULT";
-                    editMarketWatchButton.Visible = false;
-                    editMarketWatchButton.Text = "Edit";
                 };
                 defaultMenuItem.Enabled = false;
                 openCTRLOToolStripMenuItem.DropDownItems.Add(defaultMenuItem);
@@ -1595,6 +1608,18 @@ namespace Live_Rate_Application
 
                                 marketDataTable.Rows.Add(row);
                             }
+
+                            // ✅ Populate symbolMaster only once
+                            if (!isSymbolMasterInitialized)
+                            {
+                                symbolMaster = marketDataTable.AsEnumerable()
+                                                    .Select(r => r.Field<string>("Symbol"))
+                                                    .Distinct()
+                                                    .ToList();
+
+                                isSymbolMasterInitialized = true;
+                            }
+
                         }
 
                         //// Update UI safely
@@ -1637,7 +1662,7 @@ namespace Live_Rate_Application
         {
             if (dataGridView1.InvokeRequired)
             {
-                dataGridView1.BeginInvoke(new Action(UpdateGridInternal));
+                dataGridView1.BeginInvoke(new System.Action(UpdateGridInternal));
             }
             else
             {
@@ -1673,7 +1698,7 @@ namespace Live_Rate_Application
 
         private void UpdateGridInternal()
         {
-            
+
             int FixedRowCount = 17;
 
             var rows = marketDataTable.Rows.Cast<DataRow>().ToList();
@@ -1794,7 +1819,7 @@ namespace Live_Rate_Application
                             {
                                 Alignment = DataGridViewContentAlignment.MiddleLeft,
                                 ForeColor = arrowColor,
-                                Font = new Font("Segoe UI", 10.5f, FontStyle.Bold)
+                                Font = new System.Drawing.Font("Segoe UI", 10.5f, FontStyle.Bold)
                             };
 
                             continue;
@@ -1867,7 +1892,7 @@ namespace Live_Rate_Application
                         {
                             var cell = dataGridView1.Rows[i].Cells[0];
                             var text = cell.Value?.ToString() ?? "";
-                            var font = new Font("Segoe UI", 12.5f, FontStyle.Bold);
+                            var font = new System.Drawing.Font("Segoe UI", 12.5f, FontStyle.Bold);
 
                             System.Drawing.Size textSize = TextRenderer.MeasureText(text, font);
                             maxSymbolWidth = Math.Max(maxSymbolWidth, textSize.Width);
@@ -1953,5 +1978,208 @@ namespace Live_Rate_Application
 
         #endregion
 
+        private void addEditSymbolsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            // Create panel if it hasn't been initialized yet
+            if (panelAddSymbols == null)
+            {
+                // Initialize panel
+                panelAddSymbols = new Panel
+                {
+                    Size = new System.Drawing.Size(500, 500),
+                    BackColor = Color.White,
+                    BorderStyle = BorderStyle.None,
+                    Visible = false,
+                    Padding = new Padding(20),
+                };
+
+                panelAddSymbols.Paint += (s2, e2) =>
+                {
+                    ControlPaint.DrawBorder(e2.Graphics, panelAddSymbols.ClientRectangle,
+                        Color.LightGray, 2, ButtonBorderStyle.Solid,
+                        Color.LightGray, 2, ButtonBorderStyle.Solid,
+                        Color.LightGray, 2, ButtonBorderStyle.Solid,
+                        Color.LightGray, 2, ButtonBorderStyle.Solid);
+                };
+
+                panelAddSymbols.Location = new System.Drawing.Point(
+                    (this.Width - panelAddSymbols.Width) / 2,
+                    (this.Height - panelAddSymbols.Height) / 2
+                );
+
+                // Title label
+                System.Windows.Forms.Label titleLabel = new System.Windows.Forms.Label
+                {
+                    Text = "🔄 Add / Edit Symbols",
+                    Font = new System.Drawing.Font("Segoe UI Semibold", 16, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(50, 50, 50),
+                    Dock = DockStyle.Top,
+                    Height = 50,
+                    TextAlign = ContentAlignment.MiddleCenter,
+                    Padding = new Padding(0, 10, 0, 10)
+                };
+
+                // CheckedListBox
+                checkedListSymbols = new CheckedListBox
+                {
+                    Height = 320,
+                    Dock = DockStyle.Top,
+                    Font = new System.Drawing.Font("Segoe UI", 10),
+                    BorderStyle = BorderStyle.FixedSingle,
+                    CheckOnClick = true,
+                    BackColor = Color.White
+                };
+
+                // Button container
+                Panel buttonPanel = new Panel
+                {
+                    Height = 80,
+                    Dock = DockStyle.Bottom,
+                    Padding = new Padding(10),
+                    BackColor = Color.White
+                };
+
+                // Buttons
+                btnSelectAllSymbols = new System.Windows.Forms.Button
+                {
+                    Text = "Select All",
+                    Height = 40,
+                    Width = 120,
+                    BackColor = Color.FromArgb(0, 122, 204),
+                    ForeColor = Color.White,
+                    FlatStyle = FlatStyle.Flat,
+                    Font = new System.Drawing.Font("Segoe UI", 10, FontStyle.Bold),
+                    Cursor = Cursors.Hand
+                };
+                btnSelectAllSymbols.FlatAppearance.BorderSize = 0;
+
+                btnConfirmAddSymbols = new System.Windows.Forms.Button
+                {
+                    Text = "✔ Save",
+                    Height = 40,
+                    Width = 120,
+                    BackColor = Color.FromArgb(0, 122, 204),
+                    ForeColor = Color.White,
+                    FlatStyle = FlatStyle.Flat,
+                    Font = new System.Drawing.Font("Segoe UI", 10, FontStyle.Bold),
+                    Cursor = Cursors.Hand
+                };
+                btnConfirmAddSymbols.FlatAppearance.BorderSize = 0;
+
+                btnCancelAddSymbols = new System.Windows.Forms.Button
+                {
+                    Text = "✖ Cancel",
+                    Height = 40,
+                    Width = 120,
+                    BackColor = Color.LightGray,
+                    ForeColor = Color.Black,
+                    FlatStyle = FlatStyle.Flat,
+                    Font = new System.Drawing.Font("Segoe UI", 10, FontStyle.Bold),
+                    Cursor = Cursors.Hand
+                };
+                btnCancelAddSymbols.FlatAppearance.BorderSize = 0;
+
+                // Layout
+                btnSelectAllSymbols.Left = 30;
+                btnConfirmAddSymbols.Left = 170;
+                btnCancelAddSymbols.Left = 310;
+
+                buttonPanel.Controls.Add(btnSelectAllSymbols);
+                buttonPanel.Controls.Add(btnConfirmAddSymbols);
+                buttonPanel.Controls.Add(btnCancelAddSymbols);
+
+                panelAddSymbols.Controls.Add(checkedListSymbols);
+                panelAddSymbols.Controls.Add(buttonPanel);
+                panelAddSymbols.Controls.Add(titleLabel);
+
+                this.Controls.Add(panelAddSymbols);
+
+                this.Resize += (s3, e3) =>
+                {
+                    panelAddSymbols.Location = new System.Drawing.Point(
+                        (this.Width - panelAddSymbols.Width) / 2,
+                        (this.Height - panelAddSymbols.Height) / 2
+                    );
+                };
+
+                // Hook up events
+
+                btnSelectAllSymbols.Click += (s, e2) =>
+                {
+                    bool allChecked = true;
+                    for (int i = 0; i < checkedListSymbols.Items.Count; i++)
+                    {
+                        if (!checkedListSymbols.GetItemChecked(i))
+                        {
+                            allChecked = false;
+                            break;
+                        }
+                    }
+
+                    bool check = !allChecked;
+                    btnSelectAllSymbols.Text = check ? "Unselect All" : "Select All";
+
+                    for (int i = 0; i < checkedListSymbols.Items.Count; i++)
+                    {
+                        checkedListSymbols.SetItemChecked(i, check);
+                    }
+                };
+
+                btnConfirmAddSymbols.Click += (s, e2) =>
+                {
+                    var currentlyChecked = checkedListSymbols.CheckedItems.Cast<string>().ToList();
+                    var previouslySelected = selectedSymbols;
+
+                    var addedSymbols = currentlyChecked.Except(previouslySelected).ToList();
+                    var removedSymbols = previouslySelected.Except(currentlyChecked).ToList();
+
+                    if (!addedSymbols.Any() && !removedSymbols.Any())
+                    {
+                        MessageBox.Show("No changes made.");
+                        return;
+                    }
+
+                    EditableMarketWatchGrid editableMarketWatchGrid = EditableMarketWatchGrid.CurrentInstance;
+
+                    editableMarketWatchGrid.isGrid = false;
+                    editableMarketWatchGrid.saveFileName = saveFileName;
+                    selectedSymbols = currentlyChecked;
+                    editableMarketWatchGrid.SaveSymbols(selectedSymbols);
+                    UpdateGrid();
+
+                    panelAddSymbols.Visible = false;
+                };
+
+                btnCancelAddSymbols.Click += (s, e2) =>
+                {
+                    panelAddSymbols.Visible = false;
+                };
+            }
+
+            // Refresh items before showing
+            checkedListSymbols.Items.Clear();
+
+            // Add selected symbols first
+            foreach (string symbol in symbolMaster)
+            {
+                if (selectedSymbols.Contains(symbol))
+                {
+                    checkedListSymbols.Items.Add(symbol, true);
+                }
+            }
+
+            // Then unselected symbols
+            foreach (string symbol in symbolMaster)
+            {
+                if (!selectedSymbols.Contains(symbol))
+                {
+                    checkedListSymbols.Items.Add(symbol, false);
+                }
+            }
+
+            panelAddSymbols.Visible = true;
+            panelAddSymbols.BringToFront();
+
+        }
     }
 }

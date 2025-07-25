@@ -35,6 +35,8 @@ namespace Live_Rate_Application.MarketWatch
         private CheckedListBox checkedListSymbols;
         private Button btnConfirmAddSymbols;
         private Button btnCancelAddSymbols;
+        private Button btnSelectAllSymbols;  // declare this with other buttons
+        public bool isGrid = true; // Flag to check if this is a grid or not
 
         protected override void Dispose(bool disposing)
         {
@@ -95,6 +97,7 @@ namespace Live_Rate_Application.MarketWatch
             this.AllowUserToResizeRows = false;
             this.ScrollBars = ScrollBars.Both;
             this.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            this.RowTemplate.Height = 30; // or any height you want
             this.ApplyColumnStyles();
             DataGridViewCellStyle columnHeaderStyle = new DataGridViewCellStyle();
             columnHeaderStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
@@ -122,7 +125,7 @@ namespace Live_Rate_Application.MarketWatch
             // Container panel (with padding and rounded look)
             panelAddSymbols = new Panel
             {
-                Size = new Size(400, 500),
+                Size = new Size(500, 500),
                 BackColor = Color.White,
                 BorderStyle = BorderStyle.None,
                 Visible = false,
@@ -144,6 +147,22 @@ namespace Live_Rate_Application.MarketWatch
                 (this.Width - panelAddSymbols.Width) / 2,
                 (this.Height - panelAddSymbols.Height) / 2
             );
+
+            // Select All button
+            btnSelectAllSymbols = new Button
+            {
+                Text = "Select All",
+                Height = 40,
+                Width = 120,
+                BackColor = Color.FromArgb(0, 122, 204),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            btnSelectAllSymbols.FlatAppearance.BorderSize = 0;
+            btnSelectAllSymbols.Click += BtnSelectAllSymbols_Click;
+
 
             // Title label
             Label titleLabel = new Label
@@ -179,7 +198,7 @@ namespace Live_Rate_Application.MarketWatch
 
             btnConfirmAddSymbols = new Button
             {
-                Text = "✔ Confirm",
+                Text = "✔ Save",
                 Height = 40,
                 Width = 120,
                 BackColor = Color.FromArgb(0, 122, 204),
@@ -206,8 +225,12 @@ namespace Live_Rate_Application.MarketWatch
             btnCancelAddSymbols.Click += btnCancelAddSymbols_Click;
 
             // Add buttons side by side
-            btnConfirmAddSymbols.Left = 30;
-            btnCancelAddSymbols.Left = 180;
+            // Position buttons side by side with spacing
+            btnSelectAllSymbols.Left = 30;
+            btnConfirmAddSymbols.Left = 170;  // adjusted to fit 3 buttons
+            btnCancelAddSymbols.Left = 310;
+
+            buttonPanel.Controls.Add(btnSelectAllSymbols);
             buttonPanel.Controls.Add(btnConfirmAddSymbols);
             buttonPanel.Controls.Add(btnCancelAddSymbols);
 
@@ -228,6 +251,35 @@ namespace Live_Rate_Application.MarketWatch
                 );
             };
         }
+
+
+        private void BtnSelectAllSymbols_Click(object sender, EventArgs e)
+        {
+            bool allChecked = true;
+
+            // Check if all items are already checked
+            for (int i = 0; i < checkedListSymbols.Items.Count; i++)
+            {
+                if (!checkedListSymbols.GetItemChecked(i))
+                {
+                    allChecked = false;
+                    break;
+                }
+            }
+
+            // If all checked, uncheck all; else check all
+            bool check = !allChecked;
+            if (!check) 
+                btnSelectAllSymbols.Text = "Select All"; // Change button text to "Select All"
+            else 
+                btnSelectAllSymbols.Text = "Unselect All"; // Change button text to "Unselect All"
+
+            for (int i = 0; i < checkedListSymbols.Items.Count; i++)
+                {
+                    checkedListSymbols.SetItemChecked(i, check);
+                }
+        }
+
 
         private void EditableMarketWatchGrid_CellMouseClick(object sender, DataGridViewCellMouseEventArgs e)
         {
@@ -273,20 +325,34 @@ namespace Live_Rate_Application.MarketWatch
 
         private void btnConfirmAddSymbols_Click(object sender, EventArgs e)
         {
-            var newSymbols = checkedListSymbols.CheckedItems
-                .Cast<string>()
-                .Where(s => !selectedSymbols.Contains(s))
-                .ToList();
+            // Get the current checked (selected) symbols
+            var currentlyChecked = checkedListSymbols.CheckedItems.Cast<string>().ToList();
 
-            if (newSymbols.Count == 0)
+            // Get previously saved symbols
+            var previouslySelected = selectedSymbols;
+
+            // Find newly added symbols
+            var addedSymbols = currentlyChecked.Except(previouslySelected).ToList();
+
+            // Find removed (now unchecked) symbols
+            var removedSymbols = previouslySelected.Except(currentlyChecked).ToList();
+
+            // No change? Show message and exit
+            if (!addedSymbols.Any() && !removedSymbols.Any())
             {
-                MessageBox.Show("No new symbols selected.");
+                MessageBox.Show("No changes made.");
                 return;
             }
 
-            selectedSymbols.AddRange(newSymbols);
+            isGrid = false;
 
-            // Refresh grid
+            // ✅ Update the selectedSymbols to match currently checked list
+            selectedSymbols = currentlyChecked;
+
+            // ✅ Save full updated list
+            SaveSymbols(selectedSymbols);
+
+            // ✅ Refresh the grid
             UpdateGridBySymbol(selectedSymbols.Distinct().ToList());
 
             panelAddSymbols.Visible = false;
@@ -598,7 +664,7 @@ namespace Live_Rate_Application.MarketWatch
 
                 rowCount = rowCount - 1;
 
-                if (symbolCount != rowCount)
+                if (symbolCount != rowCount && isGrid)
                 {
                     // Clear the selectedSymbols list
                     SymbolList.Clear();
@@ -654,12 +720,15 @@ namespace Live_Rate_Application.MarketWatch
                             // Save to the user-selected filename
                             File.WriteAllText(saveDialog.FileName, encryptedJson);
 
-                            SymbolList.Clear();
+                            if (isGrid)
+                            {
+                                SymbolList.Clear(); 
+                            }
 
                             saveFileName = Path.GetFileNameWithoutExtension(saveDialog.FileName);
 
 
-                            MessageBox.Show($"{Path.GetFileNameWithoutExtension(saveDialog.FileName)} Marketwatch Save Successfully", "MarketWatch Save", MessageBoxButtons.OK);
+                            MessageBox.Show($"{Path.GetFileNameWithoutExtension(saveDialog.FileName)} MarketWatch Save Successfully", "MarketWatch Save", MessageBoxButtons.OK);
 
                         }
                     }
@@ -677,7 +746,10 @@ namespace Live_Rate_Application.MarketWatch
                     // Save to the user-selected filename
                     File.WriteAllText(saveFileName, encryptedJson);
 
-                    SymbolList.Clear();
+                    if (isGrid)
+                    {
+                        SymbolList.Clear(); 
+                    }
 
                     MessageBox.Show($"{Path.GetFileNameWithoutExtension(saveFileName)} Marketwatch Update Successfully", "MarketWatch Save", MessageBoxButtons.OK);
 
@@ -706,7 +778,9 @@ namespace Live_Rate_Application.MarketWatch
             {
                 Name = "Symbol",
                 HeaderText = "Symbol",
-                DataSource = new BindingList<string>(symbolMaster),
+                DataSource = new BindingList<string>(
+                    
+                    ),
                 DisplayStyle = DataGridViewComboBoxDisplayStyle.DropDownButton,
                 FlatStyle = FlatStyle.Flat,
                 Width = 200, // Increased width for better visibility
