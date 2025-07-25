@@ -1,4 +1,5 @@
-﻿using Live_Rate_Application.MarketWatch;
+﻿using DocumentFormat.OpenXml.Drawing.Charts;
+using Live_Rate_Application.MarketWatch;
 using Microsoft.Win32;
 using SocketIOClient;
 using System;
@@ -8,6 +9,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using System.Security.Principal;
@@ -15,6 +17,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using Excel = Microsoft.Office.Interop.Excel;
 
@@ -43,12 +46,29 @@ namespace Live_Rate_Application
         public bool isEdit = false;
         private Dictionary<string, decimal> previousAsks = new Dictionary<string, decimal>();
         private int symbolColumnFixedWidth = 0;
-
+        public static string token;
         public static Live_Rate CurrentInstance { get; private set; }
         // DataTable Variables
-        static DataTable marketDataTable = new DataTable();
+        static System.Data.DataTable marketDataTable = new System.Data.DataTable();
         private readonly object tableLock = new object();
         private Button saveButton = new Button();
+        public class Symbol
+        {
+            public int Id { get; set; }
+            public int ClientId { get; set; }
+            public string Identifier { get; set; }
+            public string Contract { get; set; }
+        }
+
+        public class SymbolResponse
+        {
+            public bool IsSuccess { get; set; }
+            public string Message { get; set; }
+            public List<Symbol> Data { get; set; }
+        }
+        private List<Symbol> _symbols = new List<Symbol>();
+        public List<string> identifiers;
+
 
         //Excel File Variables
         public Excel.Application excelApp;
@@ -76,6 +96,10 @@ namespace Live_Rate_Application
             CurrentInstance = this;
             InitializeComponent();
 
+            Login login = Login.CurrentInstance;
+            token = login.token;
+
+            _ = LoadSymbolsAsync();
 
             CommonClass = new Helper.Common(this);
             CommonClass.StartInternetMonitor();
@@ -95,6 +119,46 @@ namespace Live_Rate_Application
             this.WindowState = FormWindowState.Maximized;
             dataGridView1.Dock = DockStyle.Fill;
             this.FormClosed += LiveRate_FormClosed;
+
+        }
+
+
+        private async Task LoadSymbolsAsync()
+        {
+            try
+            {
+                string apiUrl = $"http://35.176.5.121:1001/ClientAuth/getSymbols?Token={token}";
+
+                using (HttpClient client = new HttpClient())
+                {
+                    HttpResponseMessage response = await client.GetAsync(apiUrl);
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        string json = await response.Content.ReadAsStringAsync();
+
+                        var symbolResponse = JsonSerializer.Deserialize<SymbolResponse>(json, new JsonSerializerOptions
+                        {
+                            PropertyNameCaseInsensitive = true
+                        });
+
+                        if (symbolResponse != null && symbolResponse.IsSuccess)
+                        {
+                            _symbols = symbolResponse.Data;
+                            identifiers = _symbols.Select(s => s.Identifier).ToList();
+                            //MessageBox.Show("Symbols loaded successfully!", "Success");
+                        }
+                    }
+                    else
+                    {
+                        MessageBox.Show($"API failed: {response.StatusCode}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error loading symbols: " + ex.Message);
+            }
         }
 
         private void Live_Rate_KeyDown(object sender, KeyEventArgs e)
@@ -855,7 +919,7 @@ namespace Live_Rate_Application
             ExportExcelOnClick();
         }
 
-        private void RefreshExcelFromDataTable(DataTable data) =>
+        private void RefreshExcelFromDataTable(System.Data.DataTable data) =>
             // Run Excel operations in a background thread to prevent UI freezing
             System.Threading.ThreadPool.QueueUserWorkItem(_ =>
             {
@@ -1434,6 +1498,8 @@ namespace Live_Rate_Application
         #region Socket
         private async void InitializeSocket()
         {
+
+
             socket = new SocketIO("https://excel.starlineapi.in:1008", new SocketIOOptions
             {
                 Reconnection = true,
@@ -1604,8 +1670,10 @@ namespace Live_Rate_Application
 
         }
 
+
         private void UpdateGridInternal()
         {
+            
             int FixedRowCount = 17;
 
             var rows = marketDataTable.Rows.Cast<DataRow>().ToList();
@@ -1801,7 +1869,7 @@ namespace Live_Rate_Application
                             var text = cell.Value?.ToString() ?? "";
                             var font = new Font("Segoe UI", 12.5f, FontStyle.Bold);
 
-                            Size textSize = TextRenderer.MeasureText(text, font);
+                            System.Drawing.Size textSize = TextRenderer.MeasureText(text, font);
                             maxSymbolWidth = Math.Max(maxSymbolWidth, textSize.Width);
                         }
 
@@ -1866,7 +1934,7 @@ namespace Live_Rate_Application
         protected void InitializeDataTable()
         {
             if (marketDataTable == null)
-                marketDataTable = new DataTable();
+                marketDataTable = new System.Data.DataTable();
 
             if (marketDataTable.Columns.Count == 0)
             {

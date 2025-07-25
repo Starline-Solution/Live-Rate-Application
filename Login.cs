@@ -17,9 +17,11 @@ namespace Live_Rate_Application
     {
         private readonly Helper.Common CommonClass;
         private bool passwordVisible = false; // Track password visibility state
-
+        public string token;
+        public static Login CurrentInstance { get; private set; }
         public Login()
         {
+            CurrentInstance = this; // Set the instance for later use
             InitializeComponent();
             this.KeyPreview = true; // Allow form to detect key presses
             this.FormClosed += Login_FormClosed;
@@ -106,7 +108,7 @@ namespace Live_Rate_Application
 
                 var loginData = new
                 {
-                    Username = uname,
+                    username = uname,
                     password
                 };
 
@@ -119,7 +121,6 @@ namespace Live_Rate_Application
                         var content = new StringContent(jsonData, Encoding.UTF8, "application/json");
 
                         HttpResponseMessage response = await client.PostAsync(apiUrl, content);
-
                         string responseContent = await response.Content.ReadAsStringAsync();
 
                         using (JsonDocument doc = JsonDocument.Parse(responseContent))
@@ -129,37 +130,23 @@ namespace Live_Rate_Application
                             if (response.IsSuccessStatusCode)
                             {
                                 bool isSuccess = root.GetProperty("isSuccess").GetBoolean();
+
                                 if (isSuccess)
                                 {
-                                    var data = root.GetProperty("data");
-                                    string username = data.GetProperty("UserName").GetString();
-                                    bool isActive = data.GetProperty("IsActive").GetBoolean();
+                                    token = root.GetProperty("token").GetString();
+
+                                    // Decode JWT token
+                                    var payload = DecodeJwtPayload(token);
+
+                                    // Extract values from decoded payload
+                                    string userName = payload.GetProperty("ClientName").GetString();
+                                    bool isActive = payload.GetProperty("IsActive").GetString().ToLower() == "true";
 
                                     if (isActive)
                                     {
                                         Live_Rate live_Rate = new Live_Rate();
                                         live_Rate.Show();
-                                        SaveCredential();
-                                        try
-                                        {
-                                            if (root.TryGetProperty("SymbolName", out JsonElement symbolArray) && symbolArray.ValueKind == JsonValueKind.Array)
-                                            {
-                                                List<string> symbols = new List<string>();
-
-                                                foreach (JsonElement item in symbolArray.EnumerateArray())
-                                                {
-                                                    string value = item.GetString();
-                                                    if (!string.IsNullOrEmpty(value))
-                                                    {
-                                                        symbols.Add(value);
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        catch (KeyNotFoundException ex)
-                                        {
-                                            MessageBox.Show(ex.Message);
-                                        }
+                                        SaveCredential(); // Presumably saves token or login info
                                         this.Hide();
                                     }
                                     else
@@ -188,13 +175,14 @@ namespace Live_Rate_Application
                                     MessageBoxIcon.Exclamation);
                             }
                         }
-
                     }
                     catch (Exception ex)
                     {
                         MessageBox.Show("Login failed: " + ex.Message);
                     }
                 }
+
+
             }
             else
             {
@@ -202,6 +190,25 @@ namespace Live_Rate_Application
                           "No Internet",
                           MessageBoxButtons.OK,
                           MessageBoxIcon.Warning);
+            }
+        }
+
+        // Helper method to decode JWT payload
+        public static JsonElement DecodeJwtPayload(string jwt)
+        {
+            string payload = jwt.Split('.')[1];
+
+            // Add padding if required
+            int mod = payload.Length % 4;
+            if (mod > 0)
+                payload += new string('=', 4 - mod);
+
+            byte[] bytes = Convert.FromBase64String(payload);
+            string json = Encoding.UTF8.GetString(bytes);
+
+            using (JsonDocument doc = JsonDocument.Parse(json))
+            {
+                return doc.RootElement.Clone();
             }
         }
 

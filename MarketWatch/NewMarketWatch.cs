@@ -31,8 +31,10 @@ namespace Live_Rate_Application.MarketWatch
         public string saveFileName;
         public bool isDelete = false;
         private ContextMenuStrip rightClickMenu;
-        private DataGridViewRow rightClickedRow = null;
-
+        private Panel panelAddSymbols;
+        private CheckedListBox checkedListSymbols;
+        private Button btnConfirmAddSymbols;
+        private Button btnCancelAddSymbols;
 
         protected override void Dispose(bool disposing)
         {
@@ -51,6 +53,7 @@ namespace Live_Rate_Application.MarketWatch
             CurrentInstance = this;
             InitializeDataTable();
             InitializeGrid();
+            InitializeAddSymbolPanel();
             InitializeSocket();
             // InitializeSaveButton();
             this.KeyDown += EditableMarketWatchGrid_KeyDown;
@@ -100,48 +103,198 @@ namespace Live_Rate_Application.MarketWatch
             this.CurrentCellDirtyStateChanged += EditableMarketWatchGrid_CurrentCellDirtyStateChanged;
 
 
-            // Add context menu for row deletion
             rightClickMenu = new ContextMenuStrip();
-            var deleteItem = new ToolStripMenuItem("Delete Symbol");
-            deleteItem.Click += DeleteRow_Click;
-            rightClickMenu.Items.Add(deleteItem);
 
-            // Handle right-click
+            var addItem = new ToolStripMenuItem("Add/Edit Symbol");
+            addItem.Click += AddSymbol_Click;
+
+            rightClickMenu.Items.Add(addItem);
+
             this.CellMouseClick += EditableMarketWatchGrid_CellMouseClick;
+
 
 
             editableMarketWatchGridView = this;
         }
 
+        private void InitializeAddSymbolPanel()
+        {
+            // Container panel (with padding and rounded look)
+            panelAddSymbols = new Panel
+            {
+                Size = new Size(400, 500),
+                BackColor = Color.White,
+                BorderStyle = BorderStyle.None,
+                Visible = false,
+                Padding = new Padding(20),
+            };
+
+            // Shadow effect (optional - mimic with a border or external lib if needed)
+            panelAddSymbols.Paint += (s, e) =>
+            {
+                ControlPaint.DrawBorder(e.Graphics, panelAddSymbols.ClientRectangle,
+                    Color.LightGray, 2, ButtonBorderStyle.Solid,
+                    Color.LightGray, 2, ButtonBorderStyle.Solid,
+                    Color.LightGray, 2, ButtonBorderStyle.Solid,
+                    Color.LightGray, 2, ButtonBorderStyle.Solid);
+            };
+
+            // Center panel
+            panelAddSymbols.Location = new Point(
+                (this.Width - panelAddSymbols.Width) / 2,
+                (this.Height - panelAddSymbols.Height) / 2
+            );
+
+            // Title label
+            Label titleLabel = new Label
+            {
+                Text = "🔄 Add / Edit Symbols",
+                Font = new Font("Segoe UI Semibold", 16, FontStyle.Bold),
+                ForeColor = Color.FromArgb(50, 50, 50),
+                Dock = DockStyle.Top,
+                Height = 50,
+                TextAlign = ContentAlignment.MiddleCenter,
+                Padding = new Padding(0, 10, 0, 10)
+            };
+
+            // CheckedListBox
+            checkedListSymbols = new CheckedListBox
+            {
+                Height = 320,
+                Dock = DockStyle.Top,
+                Font = new Font("Segoe UI", 10),
+                BorderStyle = BorderStyle.FixedSingle,
+                CheckOnClick = true,
+                BackColor = Color.White
+            };
+
+            // Button container (for spacing)
+            Panel buttonPanel = new Panel
+            {
+                Height = 80,
+                Dock = DockStyle.Bottom,
+                Padding = new Padding(10),
+                BackColor = Color.White
+            };
+
+            btnConfirmAddSymbols = new Button
+            {
+                Text = "✔ Confirm",
+                Height = 40,
+                Width = 120,
+                BackColor = Color.FromArgb(0, 122, 204),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            btnConfirmAddSymbols.FlatAppearance.BorderSize = 0;
+            btnConfirmAddSymbols.Click += btnConfirmAddSymbols_Click;
+
+            btnCancelAddSymbols = new Button
+            {
+                Text = "✖ Cancel",
+                Height = 40,
+                Width = 120,
+                BackColor = Color.LightGray,
+                ForeColor = Color.Black,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            btnCancelAddSymbols.FlatAppearance.BorderSize = 0;
+            btnCancelAddSymbols.Click += btnCancelAddSymbols_Click;
+
+            // Add buttons side by side
+            btnConfirmAddSymbols.Left = 30;
+            btnCancelAddSymbols.Left = 180;
+            buttonPanel.Controls.Add(btnConfirmAddSymbols);
+            buttonPanel.Controls.Add(btnCancelAddSymbols);
+
+            // Add controls to panel
+            panelAddSymbols.Controls.Add(checkedListSymbols);
+            panelAddSymbols.Controls.Add(buttonPanel);
+            panelAddSymbols.Controls.Add(titleLabel);
+
+            // Add panel to the main control
+            this.Controls.Add(panelAddSymbols);
+
+            // Keep panel centered on resize
+            this.Resize += (s, e) =>
+            {
+                panelAddSymbols.Location = new Point(
+                    (this.Width - panelAddSymbols.Width) / 2,
+                    (this.Height - panelAddSymbols.Height) / 2
+                );
+            };
+        }
 
         private void EditableMarketWatchGrid_CellMouseClick(object sender, DataGridViewCellMouseEventArgs e)
         {
-            if (e.Button == MouseButtons.Right && e.RowIndex >= 0)
+            if (e.Button == MouseButtons.Right)
             {
                 this.ClearSelection();
-                this.Rows[e.RowIndex].Selected = true;
+                if (e.RowIndex >= 0)
+                    this.Rows[e.RowIndex].Selected = true;
 
-                rightClickedRow = this.Rows[e.RowIndex];
                 rightClickMenu.Show(Cursor.Position);
             }
         }
 
-
-        private void DeleteRow_Click(object sender, EventArgs e)
+        private void AddSymbol_Click(object sender, EventArgs e)
         {
-            if (rightClickedRow != null && !rightClickedRow.IsNewRow)
-            {
-                if (rightClickedRow.Index == 0 && editableMarketWatchGridView.RowCount == 2 ) { MessageBox.Show("Can't Delete Single Symbol Update Symbol Name Insted of Delete", "Delete Alert", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;    
-                }
-                var result = MessageBox.Show("Are you sure you want to delete this Symbol?", "Confirm Delete", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning);
-                if (result == DialogResult.OK)
-                {
-                    this.Rows.Remove(rightClickedRow);
+            ShowAddSymbolPanel();
+        }
 
+        private void ShowAddSymbolPanel()
+        {
+            checkedListSymbols.Items.Clear();
+
+            // First: Add selected symbols (preserving their order in symbolMaster)
+            foreach (string symbol in symbolMaster)
+            {
+                if (selectedSymbols.Contains(symbol))
+                {
+                    checkedListSymbols.Items.Add(symbol, true);
                 }
             }
-            rightClickedRow = null;
+
+            // Then: Add unselected symbols
+            foreach (string symbol in symbolMaster)
+            {
+                if (!selectedSymbols.Contains(symbol))
+                {
+                    checkedListSymbols.Items.Add(symbol, false);
+                }
+            }
+
+            panelAddSymbols.Visible = true;
+        }
+
+        private void btnConfirmAddSymbols_Click(object sender, EventArgs e)
+        {
+            var newSymbols = checkedListSymbols.CheckedItems
+                .Cast<string>()
+                .Where(s => !selectedSymbols.Contains(s))
+                .ToList();
+
+            if (newSymbols.Count == 0)
+            {
+                MessageBox.Show("No new symbols selected.");
+                return;
+            }
+
+            selectedSymbols.AddRange(newSymbols);
+
+            // Refresh grid
+            UpdateGridBySymbol(selectedSymbols.Distinct().ToList());
+
+            panelAddSymbols.Visible = false;
+        }
+
+        private void btnCancelAddSymbols_Click(object sender, EventArgs e)
+        {
+            panelAddSymbols.Visible = false;
         }
 
         private void ApplyColumnStyles()
