@@ -47,6 +47,7 @@ namespace Live_Rate_Application
             this.bottomPanel = new System.Windows.Forms.Panel();
             this.panelStatusStrip = new System.Windows.Forms.StatusStrip();
             this.toolTip = new System.Windows.Forms.ToolTip(this.components);
+            this.fontSizeComboBox = new System.Windows.Forms.ComboBox();
             this.mainMenu.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridView1)).BeginInit();
             this.Tools.SuspendLayout();
@@ -105,8 +106,8 @@ namespace Live_Rate_Application
             this.saveMarketWatchHost.ForeColor = System.Drawing.Color.Black;
             this.saveMarketWatchHost.Margin = new System.Windows.Forms.Padding(5, 0, 10, 0);
             this.saveMarketWatchHost.Name = "saveMarketWatchHost";
-            this.saveMarketWatchHost.Size = new System.Drawing.Size(49, 24);
-            this.saveMarketWatchHost.Text = "Save";
+            this.saveMarketWatchHost.Size = new System.Drawing.Size(135, 24);
+            this.saveMarketWatchHost.Text = "Save MarketWatch";
             this.saveMarketWatchHost.Visible = false;
             this.saveMarketWatchHost.Click += new System.EventHandler(this.saveMarketWatchHost_Click);
             // 
@@ -272,11 +273,33 @@ namespace Live_Rate_Application
             this.panelStatusStrip.Size = new System.Drawing.Size(1152, 21);
             this.panelStatusStrip.TabIndex = 0;
             // 
+            // fontSizeComboBox
+            // 
+            this.fontSizeComboBox.FormattingEnabled = true;
+            this.fontSizeComboBox.Items.AddRange(new object[] {
+            "10",
+            "12",
+            "14",
+            "16",
+            "18",
+            "20",
+            "22",
+            "24",
+            "26",
+            "28",
+            "30"});
+            this.fontSizeComboBox.Location = new System.Drawing.Point(839, 26);
+            this.fontSizeComboBox.Name = "fontSizeComboBox";
+            this.fontSizeComboBox.Size = new System.Drawing.Size(121, 21);
+            this.fontSizeComboBox.TabIndex = 5;
+            this.fontSizeComboBox.SelectedIndexChanged += new System.EventHandler(this.fontSizeComboBox_SelectedIndexChanged);
+            // 
             // Live_Rate
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1152, 688);
+            this.Controls.Add(this.fontSizeComboBox);
             this.Controls.Add(this.dataGridView1);
             this.Controls.Add(this.mainMenu);
             this.Controls.Add(this.headerPanel);
@@ -323,6 +346,7 @@ namespace Live_Rate_Application
         private Panel bottomPanel;
         private ToolStripMenuItem addEditSymbolsToolStripMenuItem;
         private ToolStripMenuItem saveMarketWatchHost;
+        private ComboBox fontSizeComboBox;
         //private ToolStripControlHost editMarketWatchHost;
     }
 }

@@ -84,13 +84,15 @@ namespace Live_Rate_Application.MarketWatch
 
         private void InitializeGrid()
         {
+            Live_Rate defaultGridInstance = Live_Rate.CurrentInstance;
+            int fontSize = defaultGridInstance != null ? defaultGridInstance.fontSize : 12;
             this.Name = "editableMarketWatchGridView";
             this.Dock = DockStyle.Fill;
             this.ReadOnly = false;
             this.AllowUserToAddRows = false;
             this.AllowUserToDeleteRows = false;
             this.EditMode = DataGridViewEditMode.EditOnKeystrokeOrF2;
-            this.Font = new System.Drawing.Font("Segoe UI", 12);
+            this.Font = new System.Drawing.Font("Segoe UI", fontSize);
             this.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             this.ColumnHeadersHeight = 40;
             this.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
@@ -867,13 +869,6 @@ namespace Live_Rate_Application.MarketWatch
                     rowIndex++;
                 }
 
-                //// Add blank row for new entries
-                //int newRowIndex = editableMarketWatchGridView.Rows.Add();
-                //editableMarketWatchGridView.Rows[newRowIndex].Cells["Symbol"] = new DataGridViewComboBoxCell
-                //{
-                //    DataSource = symbolMaster,
-                //    Value = null
-                //};
             }
             catch (Exception ex)
             {

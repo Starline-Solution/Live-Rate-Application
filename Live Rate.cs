@@ -51,6 +51,7 @@ namespace Live_Rate_Application
         private Dictionary<string, decimal> previousAsks = new Dictionary<string, decimal>();
         private int symbolColumnFixedWidth = 0;
         public static string token;
+        public int fontSize = 12;
         public static Live_Rate CurrentInstance { get; private set; }
         // DataTable Variables
         static System.Data.DataTable marketDataTable = new System.Data.DataTable();
@@ -1743,14 +1744,14 @@ namespace Live_Rate_Application
                     var headerStyle = new DataGridViewCellStyle
                     {
                         Alignment = DataGridViewContentAlignment.MiddleCenter,
-                        Font = new System.Drawing.Font(dataGridView1.Font.FontFamily, 13.50f, FontStyle.Bold)
+                        Font = new System.Drawing.Font(dataGridView1.Font.FontFamily, fontSize + 2f, FontStyle.Bold)
                     };
 
                     // Set default styles for all columns
                     var defaultStyle = new DataGridViewCellStyle
                     {
                         Alignment = DataGridViewContentAlignment.MiddleCenter,
-                        Font = new System.Drawing.Font(dataGridView1.Font.FontFamily, 15f, FontStyle.Regular)
+                        Font = new System.Drawing.Font(dataGridView1.Font.FontFamily, fontSize, FontStyle.Regular)
                     };
 
                     foreach (DataGridViewColumn column in dataGridView1.Columns)
@@ -1819,7 +1820,7 @@ namespace Live_Rate_Application
                             {
                                 Alignment = DataGridViewContentAlignment.MiddleLeft,
                                 ForeColor = arrowColor,
-                                Font = new System.Drawing.Font("Segoe UI", 10.5f, FontStyle.Bold)
+                                Font = new System.Drawing.Font("Segoe UI", fontSize, FontStyle.Bold)
                             };
 
                             continue;
@@ -1827,16 +1828,31 @@ namespace Live_Rate_Application
 
 
                         // Skip Symbol columns (assuming j=0 is Symbol)
-                        if (j == 0 || j == dataGridView1.Columns.Count - 1)
+                        if (j == 0)
                         {
                             dataGridView1.Rows[i].Cells[j].Value = marketDataTable.Rows[i][j]?.ToString();
                             dataGridView1.Rows[i].Cells[j].Style = new DataGridViewCellStyle
                             {
                                 Alignment = DataGridViewContentAlignment.MiddleLeft,
-                                ForeColor = System.Drawing.Color.Black
+                                ForeColor = System.Drawing.Color.Black,
+                                Font = new System.Drawing.Font(dataGridView1.Font.FontFamily, fontSize, FontStyle.Bold)
                             };
                             continue;
                         }
+
+                        // Skip Symbol columns (assuming j=0 is Symbol)
+                        if (j == dataGridView1.Columns.Count - 1)
+                        {
+                            dataGridView1.Rows[i].Cells[j].Value = marketDataTable.Rows[i][j]?.ToString();
+                            dataGridView1.Rows[i].Cells[j].Style = new DataGridViewCellStyle
+                            {
+                                Alignment = DataGridViewContentAlignment.MiddleLeft,
+                                ForeColor = System.Drawing.Color.Black,
+                                Font = new System.Drawing.Font(dataGridView1.Font.FontFamily, fontSize, FontStyle.Regular)
+                            };
+                            continue;
+                        }
+
 
                         // Get current and new values
                         object currentValueObj = dataGridView1.Rows[i].Cells[j].Value;
@@ -1860,6 +1876,7 @@ namespace Live_Rate_Application
                         var cellStyle = new DataGridViewCellStyle
                         {
                             Alignment = DataGridViewContentAlignment.MiddleRight,
+                            Font = new System.Drawing.Font("Segoe UI", fontSize, FontStyle.Regular),
                         };
 
                         // Try to parse as decimal for comparison
@@ -1892,7 +1909,7 @@ namespace Live_Rate_Application
                         {
                             var cell = dataGridView1.Rows[i].Cells[0];
                             var text = cell.Value?.ToString() ?? "";
-                            var font = new System.Drawing.Font("Segoe UI", 12.5f, FontStyle.Bold);
+                            var font = new System.Drawing.Font("Segoe UI", fontSize, FontStyle.Bold);
 
                             System.Drawing.Size textSize = TextRenderer.MeasureText(text, font);
                             maxSymbolWidth = Math.Max(maxSymbolWidth, textSize.Width);
@@ -2180,6 +2197,11 @@ namespace Live_Rate_Application
             panelAddSymbols.Visible = true;
             panelAddSymbols.BringToFront();
 
+        }
+
+        private void fontSizeComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            fontSize = Convert.ToInt32(fontSizeComboBox.SelectedItem.ToString());
         }
     }
 }
