@@ -1,4 +1,5 @@
-﻿using SocketIOClient;
+﻿using DocumentFormat.OpenXml.Wordprocessing;
+using SocketIOClient;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -20,6 +21,7 @@ namespace Live_Rate_Application.MarketWatch
         private List<string> symbolMaster = new List<string>();
         private bool isSymbolMasterInitialized = false;
         public List<string> selectedSymbols = new List<string>();
+        public int fontSize = 12; // Default font size
         public static EditableMarketWatchGrid CurrentInstance { get; private set; }
         public bool isEditMarketWatch = false;
         private DataGridView editableMarketWatchGridView;
@@ -85,7 +87,6 @@ namespace Live_Rate_Application.MarketWatch
         private void InitializeGrid()
         {
             Live_Rate defaultGridInstance = Live_Rate.CurrentInstance;
-            int fontSize = defaultGridInstance != null ? defaultGridInstance.fontSize : 12;
             this.Name = "editableMarketWatchGridView";
             this.Dock = DockStyle.Fill;
             this.ReadOnly = false;
@@ -93,7 +94,7 @@ namespace Live_Rate_Application.MarketWatch
             this.AllowUserToDeleteRows = false;
             this.EditMode = DataGridViewEditMode.EditOnKeystrokeOrF2;
             this.Font = new System.Drawing.Font("Segoe UI", fontSize);
-            this.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            this.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells;
             this.ColumnHeadersHeight = 40;
             this.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
             this.AllowUserToResizeRows = false;
@@ -103,9 +104,18 @@ namespace Live_Rate_Application.MarketWatch
             this.ApplyColumnStyles();
             DataGridViewCellStyle columnHeaderStyle = new DataGridViewCellStyle();
             columnHeaderStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            columnHeaderStyle.Font = new System.Drawing.Font("Segoe UI", fontSize + 2, FontStyle.Bold);
             this.ColumnHeadersDefaultCellStyle = columnHeaderStyle;
             this.CellValueChanged += EditableMarketWatchGrid_CellValueChanged;
             this.CurrentCellDirtyStateChanged += EditableMarketWatchGrid_CurrentCellDirtyStateChanged;
+            //this.EditingControlShowing += DataGridView_EditingControlShowing;
+
+            typeof(DataGridView).InvokeMember("DoubleBuffered",
+                    System.Reflection.BindingFlags.NonPublic |
+                    System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.SetProperty,
+                    null, this, new object[] { true });
+
 
 
             rightClickMenu = new ContextMenuStrip();
@@ -122,13 +132,14 @@ namespace Live_Rate_Application.MarketWatch
             editableMarketWatchGridView = this;
         }
 
+
         private void InitializeAddSymbolPanel()
         {
             // Container panel (with padding and rounded look)
             panelAddSymbols = new Panel
             {
                 Size = new Size(500, 500),
-                BackColor = Color.White,
+                BackColor = System.Drawing.Color.White,
                 BorderStyle = BorderStyle.None,
                 Visible = false,
                 Padding = new Padding(20),
@@ -138,10 +149,10 @@ namespace Live_Rate_Application.MarketWatch
             panelAddSymbols.Paint += (s, e) =>
             {
                 ControlPaint.DrawBorder(e.Graphics, panelAddSymbols.ClientRectangle,
-                    Color.LightGray, 2, ButtonBorderStyle.Solid,
-                    Color.LightGray, 2, ButtonBorderStyle.Solid,
-                    Color.LightGray, 2, ButtonBorderStyle.Solid,
-                    Color.LightGray, 2, ButtonBorderStyle.Solid);
+                    System.Drawing.Color.LightGray, 2, ButtonBorderStyle.Solid,
+                    System.Drawing.Color.LightGray, 2, ButtonBorderStyle.Solid,
+                    System.Drawing.Color.LightGray, 2, ButtonBorderStyle.Solid,
+                    System.Drawing.Color.LightGray, 2, ButtonBorderStyle.Solid);
             };
 
             // Center panel
@@ -156,10 +167,10 @@ namespace Live_Rate_Application.MarketWatch
                 Text = "Select All",
                 Height = 40,
                 Width = 120,
-                BackColor = Color.FromArgb(0, 122, 204),
-                ForeColor = Color.White,
+                BackColor = System.Drawing.Color.FromArgb(0, 122, 204),
+                ForeColor = System.Drawing.Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 10, FontStyle.Bold),
                 Cursor = Cursors.Hand
             };
             btnSelectAllSymbols.FlatAppearance.BorderSize = 0;
@@ -170,10 +181,10 @@ namespace Live_Rate_Application.MarketWatch
             Label titleLabel = new Label
             {
                 Text = "🔄 Add / Edit Symbols",
-                Font = new Font("Segoe UI Semibold", 16, FontStyle.Bold),
-                ForeColor = Color.FromArgb(50, 50, 50),
+                Font = new System.Drawing.Font("Segoe UI Semibold", 16, FontStyle.Bold),
+                ForeColor = System.Drawing.Color.FromArgb(50, 50, 50),
                 Dock = DockStyle.Top,
-                Height = 50,
+                Height = 80,
                 TextAlign = ContentAlignment.MiddleCenter,
                 Padding = new Padding(0, 10, 0, 10)
             };
@@ -183,10 +194,10 @@ namespace Live_Rate_Application.MarketWatch
             {
                 Height = 320,
                 Dock = DockStyle.Top,
-                Font = new Font("Segoe UI", 10),
+                Font = new System.Drawing.Font("Segoe UI", 10),
                 BorderStyle = BorderStyle.FixedSingle,
                 CheckOnClick = true,
-                BackColor = Color.White
+                BackColor = System.Drawing.Color.White
             };
 
             // Button container (for spacing)
@@ -195,7 +206,7 @@ namespace Live_Rate_Application.MarketWatch
                 Height = 80,
                 Dock = DockStyle.Bottom,
                 Padding = new Padding(10),
-                BackColor = Color.White
+                BackColor = System.Drawing.Color.White
             };
 
             btnConfirmAddSymbols = new Button
@@ -203,10 +214,10 @@ namespace Live_Rate_Application.MarketWatch
                 Text = "✔ Save",
                 Height = 40,
                 Width = 120,
-                BackColor = Color.FromArgb(0, 122, 204),
-                ForeColor = Color.White,
+                BackColor = System.Drawing.Color.FromArgb(0, 122, 204),
+                ForeColor = System.Drawing.Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 10, FontStyle.Bold),
                 Cursor = Cursors.Hand
             };
             btnConfirmAddSymbols.FlatAppearance.BorderSize = 0;
@@ -217,10 +228,10 @@ namespace Live_Rate_Application.MarketWatch
                 Text = "✖ Cancel",
                 Height = 40,
                 Width = 120,
-                BackColor = Color.LightGray,
-                ForeColor = Color.Black,
+                BackColor = System.Drawing.Color.LightGray,
+                ForeColor = System.Drawing.Color.Black,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 10, FontStyle.Bold),
                 Cursor = Cursors.Hand
             };
             btnCancelAddSymbols.FlatAppearance.BorderSize = 0;
@@ -254,7 +265,6 @@ namespace Live_Rate_Application.MarketWatch
             };
         }
 
-
         private void BtnSelectAllSymbols_Click(object sender, EventArgs e)
         {
             bool allChecked = true;
@@ -281,7 +291,6 @@ namespace Live_Rate_Application.MarketWatch
                     checkedListSymbols.SetItemChecked(i, check);
                 }
         }
-
 
         private void EditableMarketWatchGrid_CellMouseClick(object sender, DataGridViewCellMouseEventArgs e)
         {
@@ -354,10 +363,11 @@ namespace Live_Rate_Application.MarketWatch
             // ✅ Save full updated list
             SaveSymbols(selectedSymbols);
 
+            panelAddSymbols.Visible = false;
+
             // ✅ Refresh the grid
             UpdateGridBySymbol(selectedSymbols.Distinct().ToList());
 
-            panelAddSymbols.Visible = false;
         }
 
         private void btnCancelAddSymbols_Click(object sender, EventArgs e)
@@ -538,9 +548,12 @@ namespace Live_Rate_Application.MarketWatch
                         int newRowIndex = grid.Rows.Add();
                         grid.Rows[newRowIndex].Cells["Symbol"] = new DataGridViewComboBoxCell
                         {
+                            DisplayStyle = DataGridViewComboBoxDisplayStyle.DropDownButton,
+                            FlatStyle = FlatStyle.Flat,
                             DataSource = symbolMaster,
-                            Value = null
+                            Value = null,
                         };
+                        grid.Rows[newRowIndex].Cells["Symbol"].Style.Font = new System.Drawing.Font("Segoe UI", fontSize, FontStyle.Bold);
                     }
 
                     UpdateGridWithLatestData();
@@ -582,6 +595,12 @@ namespace Live_Rate_Application.MarketWatch
         {
             isDelete = false;
 
+
+            // ✅ Adjust row height based on font size
+            int rowHeight = (int)Math.Ceiling(fontSize * 2.8); // tweak multiplier as needed in all rows
+            gridRow.Height = rowHeight;
+
+
             // Store previous values for comparison
             var previousValues = new Dictionary<string, decimal?>();
             foreach (DataGridViewCell cell in gridRow.Cells)
@@ -594,25 +613,47 @@ namespace Live_Rate_Application.MarketWatch
                 }
             }
 
+            DataGridViewCellStyle columnHeaderStyle = new DataGridViewCellStyle();
+            columnHeaderStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            columnHeaderStyle.Font = new System.Drawing.Font("Segoe UI", fontSize + 2, FontStyle.Bold);
+            this.ColumnHeadersDefaultCellStyle = columnHeaderStyle;
+            this.ColumnHeadersHeight = (int)Math.Ceiling(fontSize * 3.0); // tweak multiplier as needed in Header
+
+            // Create cell styles in advance
+            var symbolStyle = new DataGridViewCellStyle
+            {
+                Alignment = DataGridViewContentAlignment.MiddleLeft,
+                ForeColor = System.Drawing.Color.Black,
+                Font = new System.Drawing.Font("Segoe UI", fontSize, FontStyle.Bold),
+
+            };
+
             // Create cell styles in advance
             var defaultStyle = new DataGridViewCellStyle
             {
                 Alignment = DataGridViewContentAlignment.MiddleLeft,
-                ForeColor = Color.Black
+                ForeColor = System.Drawing.Color.Black,
+                Font = new System.Drawing.Font("Segoe UI", fontSize, FontStyle.Regular),
             };
 
             var rightAlignStyle = new DataGridViewCellStyle
             {
                 Alignment = DataGridViewContentAlignment.MiddleRight,
-                ForeColor = Color.Black
+                ForeColor = System.Drawing.Color.Black,
+                Font = new System.Drawing.Font("Segoe UI", fontSize, FontStyle.Regular),
             };
+
+
 
             // Update all cells in one pass
             foreach (DataGridViewCell cell in gridRow.Cells)
             {
                 var columnName = cell.OwningColumn.Name;
-                if (columnName == "Symbol" // || columnName == "Delete"
-                    ) continue;
+                if (columnName == "Symbol")
+                {
+                    cell.Style = symbolStyle; // Keep Symbol column with default style
+                    continue;
+                }             
 
                 object value = dataRow[columnName];
                 if (value == DBNull.Value)
@@ -633,8 +674,8 @@ namespace Live_Rate_Application.MarketWatch
                     // Apply color coding if we have previous value
                     if (previousValues.TryGetValue(columnName, out decimal? previousValue) && previousValue.HasValue)
                     {
-                        style.ForeColor = newDecimal > previousValue.Value ? Color.Green :
-                                         newDecimal < previousValue.Value ? Color.Red : Color.Black;
+                        style.ForeColor = newDecimal > previousValue.Value ? System.Drawing.Color.Green :
+                                         newDecimal < previousValue.Value ? System.Drawing.Color.Red : System.Drawing.Color.Black;
                     }
 
                     cell.Style = style;
@@ -766,6 +807,12 @@ namespace Live_Rate_Application.MarketWatch
             finally 
             {
                 selectedSymbols = SymbolList;
+                Live_Rate live_Rate = Live_Rate.CurrentInstance;
+                if(live_Rate == null)
+                    live_Rate.LiveRateGrid();
+
+                live_Rate.titleLabel.Text = $"{saveFileName}";
+                live_Rate.MenuLoad();
             }
         }
 
@@ -780,9 +827,7 @@ namespace Live_Rate_Application.MarketWatch
             {
                 Name = "Symbol",
                 HeaderText = "Symbol",
-                DataSource = new BindingList<string>(
-                    
-                    ),
+                DataSource = new BindingList<string>(),
                 DisplayStyle = DataGridViewComboBoxDisplayStyle.DropDownButton,
                 FlatStyle = FlatStyle.Flat,
                 Width = 200, // Increased width for better visibility
@@ -790,8 +835,10 @@ namespace Live_Rate_Application.MarketWatch
             };
 
             // Add custom styling for better UX
-            symbolColumn.CellTemplate.Style.BackColor = Color.WhiteSmoke;
-            symbolColumn.CellTemplate.Style.SelectionBackColor = Color.LightSteelBlue;
+            symbolColumn.CellTemplate.Style.BackColor = System.Drawing.Color.WhiteSmoke;
+            symbolColumn.CellTemplate.Style.SelectionBackColor = System.Drawing.Color.LightSteelBlue;
+            if(symbolColumn != null)
+                symbolColumn.CellTemplate.Style.Font = new System.Drawing.Font("Segoe UI", fontSize, FontStyle.Bold);
 
             Columns.Add(symbolColumn);
 
@@ -809,10 +856,11 @@ namespace Live_Rate_Application.MarketWatch
                 DataSource = new BindingList<string>(symbolMaster),
                 Value = null,
                 DisplayStyle = DataGridViewComboBoxDisplayStyle.DropDownButton,
-                FlatStyle = FlatStyle.Flat
+                FlatStyle = FlatStyle.Flat,
             };
 
             Rows[rowIndex].Cells["Symbol"] = comboCell;
+            Rows[rowIndex].Cells["Symbol"].Style.Font = new System.Drawing.Font("Segoe UI", fontSize, FontStyle.Bold);
 
             // After adding all columns
             foreach (DataGridViewColumn column in this.Columns)
@@ -820,8 +868,7 @@ namespace Live_Rate_Application.MarketWatch
                 // Make only Symbol column editable
                 column.ReadOnly = column.Name != "Symbol";
             }
-
-
+            Rows[rowIndex].Height = (int)Math.Ceiling(fontSize * 2.8); // Adjust row height based on font size
         }
 
         private void InitializeRowCells(DataGridViewRow row)

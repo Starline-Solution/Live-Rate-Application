@@ -1,4 +1,8 @@
-﻿using DocumentFormat.OpenXml.Drawing.Charts;
+﻿using ClosedXML.Excel;
+using DocumentFormat.OpenXml.Drawing.Charts;
+using DocumentFormat.OpenXml.Spreadsheet;
+using DocumentFormat.OpenXml.Wordprocessing;
+using Live_Rate_Application.Helper;
 using Live_Rate_Application.MarketWatch;
 using Microsoft.Office.Interop.Excel;
 using Microsoft.Win32;
@@ -38,23 +42,37 @@ namespace Live_Rate_Application
             set { connectionViewMode = value ? ConnectionViewMode.Connect : ConnectionViewMode.Disconnect; }
         }
         public SocketIO socket = null;
-        public static readonly string AppFolder = Path.Combine(
+        public readonly string AppFolder = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "Live Rate");
+        public string lastOpenMarketWatch = string.Empty;
         bool isLoadedSymbol = false;
         public List<string> selectedSymbols = new List<string>();
         private List<string> symbolMaster = new List<string>();
         private bool isSymbolMasterInitialized = false;
         public List<string> FileLists = new List<string>();
+        public List<string> columnPreferences;
+        public List<string> allColumns = new List<string>()
+               {
+                    "Symbol",
+                    "Bid",
+                    "Ask",
+                    "High",
+                    "Low",
+                    "Open",
+                    "Close",
+                    "LTP",
+                    "DateTime"
+               };
         public string saveFileName;
         public bool isEdit = false;
         private Dictionary<string, decimal> previousAsks = new Dictionary<string, decimal>();
         private int symbolColumnFixedWidth = 0;
-        public static string token;
+        public string token;
         public int fontSize = 12;
         public static Live_Rate CurrentInstance { get; private set; }
         // DataTable Variables
-        static System.Data.DataTable marketDataTable = new System.Data.DataTable();
+        public System.Data.DataTable marketDataTable = new System.Data.DataTable();
         private readonly object tableLock = new object();
         private System.Windows.Forms.Button saveButton = new System.Windows.Forms.Button();
 
@@ -63,6 +81,11 @@ namespace Live_Rate_Application
         private System.Windows.Forms.Button btnConfirmAddSymbols;
         private System.Windows.Forms.Button btnCancelAddSymbols;
         private System.Windows.Forms.Button btnSelectAllSymbols;
+        private Panel panelAddColumns;
+        private CheckedListBox checkedListColumns;
+        private System.Windows.Forms.Button btnSelectAllColumns;
+        private System.Windows.Forms.Button btnConfirmAddColumns;
+        private System.Windows.Forms.Button btnCancelAddColumns;
         public class Symbol
         {
             public int Id { get; set; }
@@ -122,29 +145,54 @@ namespace Live_Rate_Application
             {
                 Login login = Login.CurrentInstance;
                 token = login?.token;
+                var (currentWatch, currentColumns) = CredentialManager.GetCurrentMarketWatchWithColumns();
+                lastOpenMarketWatch =  currentWatch;
+                columnPreferences = currentColumns;
 
                 await LoadSymbolsAsync();
 
                 CommonClass = new Helper.Common(this);
                 CommonClass.StartInternetMonitor();
 
-                MenuLoad();
                 InitializeSocket();
                 InitializeDataTable();
                 this.WindowState = FormWindowState.Maximized;
                 dataGridView1.Dock = DockStyle.Fill;
                 dataGridView1.ContextMenuStrip = Tools;
+                CurrentInstance = this;
+
+                PositionFontSizeComboBox();
+                MenuLoad();
+                HandleLastOpenedMarketWatch();
 
             }
         }
 
 
-        private static bool IsInDesignMode()
+        private bool IsInDesignMode()
         {
             return LicenseManager.UsageMode == LicenseUsageMode.Designtime ||
                    Debugger.IsAttached && Process.GetCurrentProcess().ProcessName == "devenv";
         }
 
+        private void PositionFontSizeComboBox()
+        {
+            if (saveMarketWatchHost.Owner == null) return;
+
+            // Get the ToolStrip that contains the button
+            ToolStrip toolStrip = saveMarketWatchHost.Owner;
+
+            // Get the screen position of the ToolStripButton
+            System.Drawing.Point buttonScreenPoint = toolStrip.PointToScreen(saveMarketWatchHost.Bounds.Location);
+
+            // Convert to form's client coordinates
+            System.Drawing.Point buttonClientPoint = this.PointToClient(buttonScreenPoint);
+
+            // Move ComboBox just right to Save button with spacing
+            int spacing = 50;
+            fontSizeComboBox.Location = new System.Drawing.Point(buttonClientPoint.X + saveMarketWatchHost.Width + spacing, buttonClientPoint.Y + 2);
+            fontSizeComboBox.BringToFront();
+        }
 
 
         private async Task LoadSymbolsAsync()
@@ -294,12 +342,13 @@ namespace Live_Rate_Application
                     editableGrid.saveFileName = saveFileName;
             }
 
+            editableGrid.fontSize = fontSize;
 
             // Update UI state
             toolsMenuItem.Enabled = false;
             newMarketWatchMenuItem.Enabled = false;
             saveMarketWatchHost.Visible = true;
-            saveMarketWatchHost.Text = "Save";
+            saveMarketWatchHost.Text = "Save MarketWatch";
             statusLabel.Text = "Connected...";
 
             if (isEdit)
@@ -653,7 +702,7 @@ namespace Live_Rate_Application
 
         private void saveMarketWatchHost_Click(object sender, EventArgs e)
         {
-            if (saveMarketWatchHost.Text == "Save")
+            if (saveMarketWatchHost.Text == "Save MarketWatch")
             {
 
                 EditableMarketWatchGrid editableMarketWatchGrid = EditableMarketWatchGrid.CurrentInstance;
@@ -762,6 +811,7 @@ namespace Live_Rate_Application
                     addEditSymbolsToolStripMenuItem.Enabled = false;
                     SetActiveMenuItem(clickedItem);
                     saveMarketWatchHost.Visible = false;
+                    lastOpenMarketWatch = "Default";
                 };
                 defaultMenuItem.Enabled = false;
                 openCTRLOToolStripMenuItem.DropDownItems.Add(defaultMenuItem);
@@ -781,6 +831,7 @@ namespace Live_Rate_Application
                         titleLabel.Text = selectedFile.ToUpper();
                         isEdit = false;
                         saveMarketWatchHost.Visible = false;
+                        lastOpenMarketWatch = selectedFile;
 
                     };
                     openCTRLOToolStripMenuItem.DropDownItems.Add(menuItem);
@@ -802,6 +853,7 @@ namespace Live_Rate_Application
                     SetActiveMenuItem(clickedItem);
                     saveMarketWatchHost.Visible = false;
                     titleLabel.Text = "DEFAULT";
+                    lastOpenMarketWatch = "Default";
                 };
                 defaultMenuItem.Enabled = false;
                 openCTRLOToolStripMenuItem.DropDownItems.Add(defaultMenuItem);
@@ -1007,6 +1059,7 @@ namespace Live_Rate_Application
                 try
                 {
                     excelApp.IgnoreRemoteRequests = true;
+                    List<(Excel.Range cell, System.Drawing.Color color)> symbolCellsToColor = new List<(Excel.Range, System.Drawing.Color)>();
 
                     // Validate workbook
                     string workbookName = workbook.FullName;
@@ -1046,6 +1099,8 @@ namespace Live_Rate_Application
                         }
                         _headersWritten = true;
                     }
+
+
 
                     // 3. Bulk write new data (if exists)
                     if (rowCount > 0)
@@ -1120,6 +1175,41 @@ namespace Live_Rate_Application
                                     else if (newDecimal < oldDecimal)
                                         redCells.Add(worksheet.Cells[2 + r, c + 1]);
                                 }
+                            }
+
+
+                            // Symbol and Ask logic
+                            string symbol = data.Rows[r][0]?.ToString() ?? "";
+                            object askVal = data.Rows[r][2]; // Ask column = index 2
+
+                            string arrow = "";
+                            System.Drawing.Color arrowColor = System.Drawing.Color.Black;
+
+                            if (askVal != DBNull.Value && decimal.TryParse(askVal.ToString(), out decimal currentAsk))
+                            {
+                                if (previousAsks.TryGetValue(symbol, out decimal prevAsk))
+                                {
+                                    if (currentAsk > prevAsk)
+                                    {
+                                        arrow = " ▲";
+                                        arrowColor = System.Drawing.Color.Green;
+                                    }
+                                    else if (currentAsk < prevAsk)
+                                    {
+                                        arrow = " ▼";
+                                        arrowColor = System.Drawing.Color.Red;
+                                    }
+                                }
+                                previousAsks[symbol] = currentAsk;
+                            }
+
+                            // Update Symbol column (column A, index 0)
+                            dataArray[r, 0] = symbol + arrow;
+
+                            if (!string.IsNullOrEmpty(arrow))
+                            {
+                                Excel.Range symbolCell = worksheet.Cells[2 + r, 1]; // Row index in Excel starts at 2, Column A = 1
+                                symbolCellsToColor.Add((symbolCell, arrowColor));
                             }
                         }
 
@@ -1673,113 +1763,122 @@ namespace Live_Rate_Application
 
         private void InitializeDataGridView()
         {
+
             // Clear existing columns if any
             dataGridView1.Columns.Clear();
 
-            // Add columns manually to match your DataTable structure
-            dataGridView1.Columns.Add("Symbol", "Symbol");
-            dataGridView1.Columns.Add("Bid", "Bid");
-            dataGridView1.Columns.Add("Ask", "Ask");
-            dataGridView1.Columns.Add("High", "High");
-            dataGridView1.Columns.Add("Low", "Low");
-            dataGridView1.Columns.Add("Open", "Open");
-            dataGridView1.Columns.Add("Close", "Close");
-            dataGridView1.Columns.Add("LTP", "LTP");
-            dataGridView1.Columns.Add("DateTime", "DateTime");
-
-            // Configure column properties
-            foreach (DataGridViewColumn column in dataGridView1.Columns)
+            // Add columns from the list
+            foreach (string columnName in allColumns)
             {
-                column.SortMode = DataGridViewColumnSortMode.NotSortable;
-                column.ReadOnly = true;
+                DataGridViewColumn column = new DataGridViewTextBoxColumn
+                {
+                    Name = columnName,
+                    HeaderText = columnName,
+                    SortMode = DataGridViewColumnSortMode.NotSortable,
+                    ReadOnly = true
+                };
+
+               
+
+                dataGridView1.Columns.Add(column);
             }
+
+            // Enable double buffering for better performance
+            typeof(DataGridView).InvokeMember("DoubleBuffered",
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.SetProperty,
+                null, dataGridView1, new object[] { true });
+
 
         }
 
-
         private void UpdateGridInternal()
         {
-
             int FixedRowCount = 17;
+
+            if (marketDataTable == null)
+                return; // Or handle accordingly
 
             var rows = marketDataTable.Rows.Cast<DataRow>().ToList();
 
             bool symbolRowUpdate = false;
 
-            // First update the DataTable with proper instrument names
+            // Clean up symbols not in selectedSymbols
             foreach (DataRow row in rows)
             {
-
-                if (row.RowState == DataRowState.Deleted || row.RowState == DataRowState.Detached)
+                if (row == null || row.RowState == DataRowState.Deleted || row.RowState == DataRowState.Detached)
                     continue;
 
-                if (isLoadedSymbol == true)
+                if (isLoadedSymbol)
                 {
-
                     string symbol = row[0]?.ToString();
-
-                    // Check if symbol exists in selectedSymbols
                     if (!selectedSymbols.Contains(symbol))
                     {
-                        row.Delete(); // Mark the row for deletion
+                        row.Delete();
                         FixedRowCount--;
                         continue;
                     }
                 }
             }
 
-
             if (dataGridView1.IsDisposed) return;
 
             dataGridView1.SuspendLayout();
             try
             {
-                // Ensure columns exist
+
+
+                // Ensure columns exist and style them
                 if (dataGridView1.Columns.Count == 0)
                 {
-
                     InitializeDataGridView();
 
-                    // Set default styles for all columns
-                    var headerStyle = new DataGridViewCellStyle
-                    {
-                        Alignment = DataGridViewContentAlignment.MiddleCenter,
-                        Font = new System.Drawing.Font(dataGridView1.Font.FontFamily, fontSize + 2f, FontStyle.Bold)
-                    };
+                    dataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells; // or None
 
-                    // Set default styles for all columns
-                    var defaultStyle = new DataGridViewCellStyle
-                    {
-                        Alignment = DataGridViewContentAlignment.MiddleCenter,
-                        Font = new System.Drawing.Font(dataGridView1.Font.FontFamily, fontSize, FontStyle.Regular)
-                    };
+                }
 
-                    foreach (DataGridViewColumn column in dataGridView1.Columns)
+                // Apply header and cell styles only once
+                var headerFont = new System.Drawing.Font("Segoe UI", fontSize + 2, FontStyle.Bold);
+                var cellFont = new System.Drawing.Font("Segoe UI", fontSize, FontStyle.Regular);
+                var symbolFont = new System.Drawing.Font("Segoe UI", fontSize, FontStyle.Bold);
+
+                dataGridView1.ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
+                {
+                    Alignment = DataGridViewContentAlignment.MiddleCenter,
+                    Font = headerFont
+                };
+
+                dataGridView1.ColumnHeadersHeight = (int)Math.Ceiling((fontSize + 2) * 3.0);
+
+                foreach (DataGridViewColumn column in dataGridView1.Columns)
+                {
+                    if (column.Index == 0)
                     {
-                        column.DefaultCellStyle = defaultStyle;
-                        column.HeaderCell.Style = headerStyle;
+                        column.DefaultCellStyle = new DataGridViewCellStyle
+                        {
+                            Alignment = DataGridViewContentAlignment.MiddleLeft,
+                            Font = symbolFont
+                        };
                     }
-
-                    if (dataGridView1.Columns.Count > 0)
+                    else
                     {
-                        dataGridView1.Columns[0].DefaultCellStyle = headerStyle;
-                        dataGridView1.Columns[0].HeaderCell.Style = headerStyle;
+                        column.DefaultCellStyle = new DataGridViewCellStyle
+                        {
+                            Alignment = DataGridViewContentAlignment.MiddleRight,
+                            Font = cellFont
+                        };
                     }
                 }
 
-                // Ensure we have exactly 17 rows
+                // Maintain exact row count
                 while (dataGridView1.Rows.Count < FixedRowCount)
-                {
                     dataGridView1.Rows.Add();
-                }
                 while (dataGridView1.Rows.Count > FixedRowCount)
-                {
                     dataGridView1.Rows.RemoveAt(dataGridView1.Rows.Count - 1);
-                }
 
                 int rowsToUpdate = Math.Min(FixedRowCount, marketDataTable.Rows.Count);
 
-                // Update cell values with formatting
                 for (int i = 0; i < rowsToUpdate; i++)
                 {
                     for (int j = 0; j < dataGridView1.Columns.Count; j++)
@@ -1787,11 +1886,11 @@ namespace Live_Rate_Application
                         if (j == 0)
                         {
                             string symbol = marketDataTable.Rows[i][j]?.ToString() ?? "";
-                            int askColumnIndex = 2; // Change this to your actual Ask price column index
-
+                            int askColumnIndex = 2; // Update accordingly
                             object askValueObj = marketDataTable.Rows[i][askColumnIndex];
+
                             string arrow = "";
-                            Color arrowColor = Color.Black;
+                            System.Drawing.Color arrowColor = System.Drawing.Color.Black;
 
                             if (askValueObj != DBNull.Value && decimal.TryParse(askValueObj.ToString(), out decimal currentAsk))
                             {
@@ -1800,47 +1899,30 @@ namespace Live_Rate_Application
                                     if (currentAsk > previousAsk)
                                     {
                                         arrow = " ▲";
-                                        arrowColor = Color.Green;
+                                        arrowColor = System.Drawing.Color.Green;
                                     }
                                     else if (currentAsk < previousAsk)
                                     {
                                         arrow = " ▼";
-                                        arrowColor = Color.Red;
+                                        arrowColor = System.Drawing.Color.Red;
                                     }
                                 }
 
-                                // Update stored ask
                                 previousAsks[symbol] = currentAsk;
                             }
 
-                            // Update cell with arrow and symbol
                             var symbolCell = dataGridView1.Rows[i].Cells[j];
                             symbolCell.Value = symbol + arrow;
                             symbolCell.Style = new DataGridViewCellStyle
                             {
                                 Alignment = DataGridViewContentAlignment.MiddleLeft,
                                 ForeColor = arrowColor,
-                                Font = new System.Drawing.Font("Segoe UI", fontSize, FontStyle.Bold)
-                            };
-
-                            continue;
-                        }
-
-
-                        // Skip Symbol columns (assuming j=0 is Symbol)
-                        if (j == 0)
-                        {
-                            dataGridView1.Rows[i].Cells[j].Value = marketDataTable.Rows[i][j]?.ToString();
-                            dataGridView1.Rows[i].Cells[j].Style = new DataGridViewCellStyle
-                            {
-                                Alignment = DataGridViewContentAlignment.MiddleLeft,
-                                ForeColor = System.Drawing.Color.Black,
-                                Font = new System.Drawing.Font(dataGridView1.Font.FontFamily, fontSize, FontStyle.Bold)
+                                Font = symbolFont
                             };
                             continue;
                         }
 
-                        // Skip Symbol columns (assuming j=0 is Symbol)
+                        // Skip last column for special handling (e.g. timestamp?)
                         if (j == dataGridView1.Columns.Count - 1)
                         {
                             dataGridView1.Rows[i].Cells[j].Value = marketDataTable.Rows[i][j]?.ToString();
@@ -1848,19 +1930,14 @@ namespace Live_Rate_Application
                             {
                                 Alignment = DataGridViewContentAlignment.MiddleLeft,
                                 ForeColor = System.Drawing.Color.Black,
-                                Font = new System.Drawing.Font(dataGridView1.Font.FontFamily, fontSize, FontStyle.Regular)
+                                Font = cellFont
                             };
                             continue;
                         }
 
-
-                        // Get current and new values
                         object currentValueObj = dataGridView1.Rows[i].Cells[j].Value;
                         string currentValueStr = currentValueObj?.ToString() ?? string.Empty;
-                        //string newValueStr = marketDataTable.Rows[i][j]?.ToString() ?? string.Empty;
-
-                        // Update cell value
-                        var value = marketDataTable.Rows[i][j];
+                        object value = marketDataTable.Rows[i][j];
 
                         if (value != DBNull.Value && double.TryParse(value.ToString(), out double number))
                         {
@@ -1871,35 +1948,31 @@ namespace Live_Rate_Application
                             dataGridView1.Rows[i].Cells[j].Value = string.Empty;
                         }
 
-
-                        // Create cell style
                         var cellStyle = new DataGridViewCellStyle
                         {
                             Alignment = DataGridViewContentAlignment.MiddleRight,
-                            Font = new System.Drawing.Font("Segoe UI", fontSize, FontStyle.Regular),
+                            Font = cellFont
                         };
 
-                        // Try to parse as decimal for comparison
                         if (decimal.TryParse(currentValueStr, out decimal currentDecimal) &&
-                            decimal.TryParse(marketDataTable.Rows[i][j]?.ToString(), out decimal newDecimal))
+                            decimal.TryParse(value?.ToString(), out decimal newDecimal))
                         {
                             if (newDecimal > currentDecimal)
-                            {
-                                cellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
                                 cellStyle.ForeColor = System.Drawing.Color.Green;
-                            }
                             else if (newDecimal < currentDecimal)
-                            {
-                                cellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
                                 cellStyle.ForeColor = System.Drawing.Color.Red;
-                            }
+                            else
+                                cellStyle.ForeColor = System.Drawing.Color.Black;
                         }
 
                         dataGridView1.Rows[i].Cells[j].Style = cellStyle;
-                        dataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells;
                     }
+                    dataGridView1.Rows[i].Height = (int)Math.Ceiling((fontSize) * 2.7);
                 }
-                // 🔵 Determine symbol column width only once to avoid flickering
+
+                dataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells;
+
+                // Handle symbol column fixed width
                 if (symbolColumnFixedWidth == 0 && rowsToUpdate > 0)
                 {
                     int maxSymbolWidth = 0;
@@ -1909,35 +1982,26 @@ namespace Live_Rate_Application
                         {
                             var cell = dataGridView1.Rows[i].Cells[0];
                             var text = cell.Value?.ToString() ?? "";
-                            var font = new System.Drawing.Font("Segoe UI", fontSize, FontStyle.Bold);
-
-                            System.Drawing.Size textSize = TextRenderer.MeasureText(text, font);
+                            System.Drawing.Size textSize = TextRenderer.MeasureText(text, symbolFont);
                             maxSymbolWidth = Math.Max(maxSymbolWidth, textSize.Width);
                         }
-
-                        // Add padding
-                        maxSymbolWidth += 20;
+                        maxSymbolWidth += 20; // padding
                     }
 
-                    // Store fixed width once
                     symbolColumnFixedWidth = maxSymbolWidth;
-
-                    // Apply it
                     if (dataGridView1.Columns.Count > 0)
                     {
-                        dataGridView1.Columns[0].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                        dataGridView1.Columns[0].AutoSizeMode = DataGridViewAutoSizeColumnMode.DisplayedCells;
                         dataGridView1.Columns[0].Width = symbolColumnFixedWidth;
                     }
                 }
                 else if (symbolColumnFixedWidth > 0 && dataGridView1.Columns.Count > 0)
                 {
-                    // Always re-apply fixed width to maintain layout
-                    dataGridView1.Columns[0].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                    dataGridView1.Columns[0].AutoSizeMode = DataGridViewAutoSizeColumnMode.DisplayedCells;
                     dataGridView1.Columns[0].Width = symbolColumnFixedWidth;
                 }
 
-
-                // Clear remaining rows
+                // Clear extra rows
                 for (int i = rowsToUpdate; i < FixedRowCount; i++)
                 {
                     for (int j = 0; j < dataGridView1.Columns.Count; j++)
@@ -1956,20 +2020,15 @@ namespace Live_Rate_Application
             }
             finally
             {
-                if (!symbolRowUpdate && dataGridView1.ReadOnly != true && isLoadedSymbol)
-                {
+                if (!symbolRowUpdate && !dataGridView1.ReadOnly && isLoadedSymbol)
                     symbolRowUpdate = true;
-                }
 
                 dataGridView1.ResumeLayout();
+
                 if (!isLoadedSymbol)
-                {
                     RefreshExcelFromDataTable(marketDataTable);
-                }
                 else
-                {
                     SymbolExportToExcel();
-                }
             }
         }
 
@@ -1994,7 +2053,6 @@ namespace Live_Rate_Application
         }
 
         #endregion
-
         private void addEditSymbolsToolStripMenuItem_Click(object sender, EventArgs e)
         {
             // Create panel if it hasn't been initialized yet
@@ -2004,7 +2062,7 @@ namespace Live_Rate_Application
                 panelAddSymbols = new Panel
                 {
                     Size = new System.Drawing.Size(500, 500),
-                    BackColor = Color.White,
+                    BackColor = System.Drawing.Color.White,
                     BorderStyle = BorderStyle.None,
                     Visible = false,
                     Padding = new Padding(20),
@@ -2013,10 +2071,10 @@ namespace Live_Rate_Application
                 panelAddSymbols.Paint += (s2, e2) =>
                 {
                     ControlPaint.DrawBorder(e2.Graphics, panelAddSymbols.ClientRectangle,
-                        Color.LightGray, 2, ButtonBorderStyle.Solid,
-                        Color.LightGray, 2, ButtonBorderStyle.Solid,
-                        Color.LightGray, 2, ButtonBorderStyle.Solid,
-                        Color.LightGray, 2, ButtonBorderStyle.Solid);
+                        System.Drawing.Color.LightGray, 2, ButtonBorderStyle.Solid,
+                        System.Drawing.Color.LightGray, 2, ButtonBorderStyle.Solid,
+                        System.Drawing.Color.LightGray, 2, ButtonBorderStyle.Solid,
+                        System.Drawing.Color.LightGray, 2, ButtonBorderStyle.Solid);
                 };
 
                 panelAddSymbols.Location = new System.Drawing.Point(
@@ -2029,7 +2087,7 @@ namespace Live_Rate_Application
                 {
                     Text = "🔄 Add / Edit Symbols",
                     Font = new System.Drawing.Font("Segoe UI Semibold", 16, FontStyle.Bold),
-                    ForeColor = Color.FromArgb(50, 50, 50),
+                    ForeColor = System.Drawing.Color.FromArgb(50, 50, 50),
                     Dock = DockStyle.Top,
                     Height = 50,
                     TextAlign = ContentAlignment.MiddleCenter,
@@ -2044,7 +2102,7 @@ namespace Live_Rate_Application
                     Font = new System.Drawing.Font("Segoe UI", 10),
                     BorderStyle = BorderStyle.FixedSingle,
                     CheckOnClick = true,
-                    BackColor = Color.White
+                    BackColor = System.Drawing.Color.White
                 };
 
                 // Button container
@@ -2053,7 +2111,7 @@ namespace Live_Rate_Application
                     Height = 80,
                     Dock = DockStyle.Bottom,
                     Padding = new Padding(10),
-                    BackColor = Color.White
+                    BackColor = System.Drawing.Color.White
                 };
 
                 // Buttons
@@ -2062,8 +2120,8 @@ namespace Live_Rate_Application
                     Text = "Select All",
                     Height = 40,
                     Width = 120,
-                    BackColor = Color.FromArgb(0, 122, 204),
-                    ForeColor = Color.White,
+                    BackColor = System.Drawing.Color.FromArgb(0, 122, 204),
+                    ForeColor = System.Drawing.Color.White,
                     FlatStyle = FlatStyle.Flat,
                     Font = new System.Drawing.Font("Segoe UI", 10, FontStyle.Bold),
                     Cursor = Cursors.Hand
@@ -2075,8 +2133,8 @@ namespace Live_Rate_Application
                     Text = "✔ Save",
                     Height = 40,
                     Width = 120,
-                    BackColor = Color.FromArgb(0, 122, 204),
-                    ForeColor = Color.White,
+                    BackColor = System.Drawing.Color.FromArgb(0, 122, 204),
+                    ForeColor = System.Drawing.Color.White,
                     FlatStyle = FlatStyle.Flat,
                     Font = new System.Drawing.Font("Segoe UI", 10, FontStyle.Bold),
                     Cursor = Cursors.Hand
@@ -2088,8 +2146,8 @@ namespace Live_Rate_Application
                     Text = "✖ Cancel",
                     Height = 40,
                     Width = 120,
-                    BackColor = Color.LightGray,
-                    ForeColor = Color.Black,
+                    BackColor = System.Drawing.Color.LightGray,
+                    ForeColor = System.Drawing.Color.Black,
                     FlatStyle = FlatStyle.Flat,
                     Font = new System.Drawing.Font("Segoe UI", 10, FontStyle.Bold),
                     Cursor = Cursors.Hand
@@ -2202,6 +2260,247 @@ namespace Live_Rate_Application
         private void fontSizeComboBox_SelectedIndexChanged(object sender, EventArgs e)
         {
             fontSize = Convert.ToInt32(fontSizeComboBox.SelectedItem.ToString());
+
+            EditableMarketWatchGrid editableMarketWatchGrid = EditableMarketWatchGrid.CurrentInstance;
+            if (editableMarketWatchGrid != null)
+                editableMarketWatchGrid.fontSize = fontSize;
+        }
+
+        private void Live_Rate_FormClosed(object sender, FormClosedEventArgs e)
+        {
+            string lastMarketWatchName = saveFileName ?? "Default";
+
+            // Correct way to call the static method
+            CredentialManager.SaveMarketWatchWithColumns(lastMarketWatchName, columnPreferences);
+
+            System.Windows.Forms.Application.Exit();
+        }
+
+        public void HandleLastOpenedMarketWatch()
+        {
+            if (string.IsNullOrEmpty(lastOpenMarketWatch))
+                return;
+
+            // Find and click the matching menu item
+            foreach (ToolStripMenuItem item in openCTRLOToolStripMenuItem.DropDownItems)
+            {
+                if (item.Text == lastOpenMarketWatch)
+                {
+                    item.PerformClick();
+                    break;
+                }
+            }
+        }
+
+        private void addEditColumnsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            // Create panel if it hasn't been initialized yet
+            if (panelAddColumns == null)
+            {
+                // Initialize panel
+                panelAddColumns = new Panel
+                {
+                    Size = new System.Drawing.Size(500, 500),
+                    BackColor = System.Drawing.Color.White,
+                    BorderStyle = BorderStyle.None,
+                    Visible = false,
+                    Padding = new Padding(20),
+                };
+
+                panelAddColumns.Paint += (s2, e2) =>
+                {
+                    ControlPaint.DrawBorder(e2.Graphics, panelAddColumns.ClientRectangle,
+                        System.Drawing.Color.LightGray, 2, ButtonBorderStyle.Solid,
+                        System.Drawing.Color.LightGray, 2, ButtonBorderStyle.Solid,
+                        System.Drawing.Color.LightGray, 2, ButtonBorderStyle.Solid,
+                        System.Drawing.Color.LightGray, 2, ButtonBorderStyle.Solid);
+                };
+
+                panelAddColumns.Location = new System.Drawing.Point(
+                    (this.Width - panelAddColumns.Width) / 2,
+                    (this.Height - panelAddColumns.Height) / 2
+                );
+
+                // Title label
+                System.Windows.Forms.Label titleLabel = new System.Windows.Forms.Label
+                {
+                    Text = "📊 Add / Edit Columns",
+                    Font = new System.Drawing.Font("Segoe UI Semibold", 16, FontStyle.Bold),
+                    ForeColor = System.Drawing.Color.FromArgb(50, 50, 50),
+                    Dock = DockStyle.Top,
+                    Height = 50,
+                    TextAlign = ContentAlignment.MiddleCenter,
+                    Padding = new Padding(0, 10, 0, 10)
+                };
+
+                // CheckedListBox
+                checkedListColumns = new CheckedListBox
+                {
+                    Height = 320,
+                    Dock = DockStyle.Top,
+                    Font = new System.Drawing.Font("Segoe UI", 10),
+                    BorderStyle = BorderStyle.FixedSingle,
+                    CheckOnClick = true,
+                    BackColor = System.Drawing.Color.White
+                };
+
+                // Button container
+                Panel buttonPanel = new Panel
+                {
+                    Height = 80,
+                    Dock = DockStyle.Bottom,
+                    Padding = new Padding(10),
+                    BackColor = System.Drawing.Color.White
+                };
+
+                // Buttons
+                btnSelectAllColumns = new System.Windows.Forms.Button
+                {
+                    Text = "Select All",
+                    Height = 40,
+                    Width = 120,
+                    BackColor = System.Drawing.Color.FromArgb(0, 122, 204),
+                    ForeColor = System.Drawing.Color.White,
+                    FlatStyle = FlatStyle.Flat,
+                    Font = new System.Drawing.Font("Segoe UI", 10, FontStyle.Bold),
+                    Cursor = Cursors.Hand
+                };
+                btnSelectAllColumns.FlatAppearance.BorderSize = 0;
+
+                btnConfirmAddColumns = new System.Windows.Forms.Button
+                {
+                    Text = "✔ Save",
+                    Height = 40,
+                    Width = 120,
+                    BackColor = System.Drawing.Color.FromArgb(0, 122, 204),
+                    ForeColor = System.Drawing.Color.White,
+                    FlatStyle = FlatStyle.Flat,
+                    Font = new System.Drawing.Font("Segoe UI", 10, FontStyle.Bold),
+                    Cursor = Cursors.Hand
+                };
+                btnConfirmAddColumns.FlatAppearance.BorderSize = 0;
+
+                btnCancelAddColumns = new System.Windows.Forms.Button
+                {
+                    Text = "✖ Cancel",
+                    Height = 40,
+                    Width = 120,
+                    BackColor = System.Drawing.Color.LightGray,
+                    ForeColor = System.Drawing.Color.Black,
+                    FlatStyle = FlatStyle.Flat,
+                    Font = new System.Drawing.Font("Segoe UI", 10, FontStyle.Bold),
+                    Cursor = Cursors.Hand
+                };
+                btnCancelAddColumns.FlatAppearance.BorderSize = 0;
+
+                // Layout
+                btnSelectAllColumns.Left = 30;
+                btnConfirmAddColumns.Left = 170;
+                btnCancelAddColumns.Left = 310;
+
+                buttonPanel.Controls.Add(btnSelectAllColumns);
+                buttonPanel.Controls.Add(btnConfirmAddColumns);
+                buttonPanel.Controls.Add(btnCancelAddColumns);
+
+                panelAddColumns.Controls.Add(checkedListColumns);
+                panelAddColumns.Controls.Add(buttonPanel);
+                panelAddColumns.Controls.Add(titleLabel);
+
+                this.Controls.Add(panelAddColumns);
+
+                this.Resize += (s3, e3) =>
+                {
+                    panelAddColumns.Location = new System.Drawing.Point(
+                        (this.Width - panelAddColumns.Width) / 2,
+                        (this.Height - panelAddColumns.Height) / 2
+                    );
+                };
+
+                // Hook up events
+                btnSelectAllColumns.Click += (s, e2) =>
+                {
+                    bool allChecked = true;
+                    for (int i = 0; i < checkedListColumns.Items.Count; i++)
+                    {
+                        if (!checkedListColumns.GetItemChecked(i))
+                        {
+                            allChecked = false;
+                            break;
+                        }
+                    }
+
+                    bool check = !allChecked;
+                    btnSelectAllColumns.Text = check ? "Unselect All" : "Select All";
+
+                    for (int i = 0; i < checkedListColumns.Items.Count; i++)
+                    {
+                        checkedListColumns.SetItemChecked(i, check);
+                    }
+                };
+
+                btnConfirmAddColumns.Click += (s, e2) =>
+                {
+                    var currentlyChecked = checkedListColumns.CheckedItems.Cast<string>().ToList();
+                    var previouslySelected = columnPreferences.Count > 0 ? columnPreferences : allColumns;
+
+                    if (!currentlyChecked.Any())
+                    {
+                        MessageBox.Show("Please select at least one column.");
+                        return;
+                    }
+
+                    if (currentlyChecked.SequenceEqual(previouslySelected))
+                    {
+                        MessageBox.Show("No changes made.");
+                        panelAddColumns.Visible = false;
+                        return;
+                    }
+
+                    // Save the new column preferences
+                    columnPreferences = currentlyChecked;
+
+                    panelAddColumns.Visible = false;
+                    MessageBox.Show("Columns updated successfully!");
+
+                };
+
+                btnCancelAddColumns.Click += (s, e2) =>
+                {
+                    panelAddColumns.Visible = false;
+                };
+            }
+
+            // Refresh items before showing
+            checkedListColumns.Items.Clear();
+
+            // Get the columns to display (use allColumns if no preferences set)
+            var columnsToShow = columnPreferences.Count > 0 ? columnPreferences : allColumns;
+
+            // Add selected columns first (preserving order)
+            foreach (string column in allColumns)
+            {
+                if (columnsToShow.Contains(column))
+                {
+                    checkedListColumns.Items.Add(column, true);
+                }
+            }
+
+            // Then add unselected columns
+            foreach (string column in allColumns)
+            {
+                if (!columnsToShow.Contains(column))
+                {
+                    checkedListColumns.Items.Add(column, false);
+                }
+            }
+
+            // Update Select All button text
+            btnSelectAllColumns.Text = checkedListColumns.CheckedItems.Count == checkedListColumns.Items.Count
+                ? "Unselect All"
+                : "Select All";
+
+            panelAddColumns.Visible = true;
+            panelAddColumns.BringToFront();
         }
     }
 }
