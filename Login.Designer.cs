@@ -39,13 +39,12 @@ namespace Live_Rate_Application
             this.formPanel = new System.Windows.Forms.Panel();
             this.saveCredential = new System.Windows.Forms.CheckBox();
             this.titleLabel = new System.Windows.Forms.Label();
-            this.logoPictureBox = new System.Windows.Forms.PictureBox();
             this.unameUnderline = new System.Windows.Forms.Panel();
             this.passwordUnderline = new System.Windows.Forms.Panel();
+            this.exitLabelButton = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)(this.eyePictureBox)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.errorProvider)).BeginInit();
             this.formPanel.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.logoPictureBox)).BeginInit();
             this.SuspendLayout();
             // 
             // uname
@@ -143,9 +142,9 @@ namespace Live_Rate_Application
             // formPanel
             // 
             this.formPanel.BackColor = System.Drawing.Color.White;
+            this.formPanel.Controls.Add(this.exitLabelButton);
             this.formPanel.Controls.Add(this.saveCredential);
             this.formPanel.Controls.Add(this.titleLabel);
-            this.formPanel.Controls.Add(this.logoPictureBox);
             this.formPanel.Controls.Add(this.uname);
             this.formPanel.Controls.Add(this.password);
             this.formPanel.Controls.Add(this.unameTextBox);
@@ -174,24 +173,13 @@ namespace Live_Rate_Application
             // 
             this.titleLabel.Font = new System.Drawing.Font("Segoe UI Semibold", 18F, System.Drawing.FontStyle.Bold);
             this.titleLabel.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(64)))), ((int)(((byte)(64)))), ((int)(((byte)(64)))));
-            this.titleLabel.Location = new System.Drawing.Point(4, 100);
+            this.titleLabel.Location = new System.Drawing.Point(4, 66);
             this.titleLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.titleLabel.Name = "titleLabel";
             this.titleLabel.Size = new System.Drawing.Size(617, 50);
             this.titleLabel.TabIndex = 0;
             this.titleLabel.Text = "Welcome";
             this.titleLabel.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
-            // logoPictureBox
-            // 
-            this.logoPictureBox.Image = ((System.Drawing.Image)(resources.GetObject("logoPictureBox.Image")));
-            this.logoPictureBox.Location = new System.Drawing.Point(250, 25);
-            this.logoPictureBox.Margin = new System.Windows.Forms.Padding(4);
-            this.logoPictureBox.Name = "logoPictureBox";
-            this.logoPictureBox.Size = new System.Drawing.Size(125, 62);
-            this.logoPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
-            this.logoPictureBox.TabIndex = 1;
-            this.logoPictureBox.TabStop = false;
             // 
             // unameUnderline
             // 
@@ -210,6 +198,21 @@ namespace Live_Rate_Application
             this.passwordUnderline.Name = "passwordUnderline";
             this.passwordUnderline.Size = new System.Drawing.Size(375, 1);
             this.passwordUnderline.TabIndex = 6;
+            // 
+            // exitLabelButton
+            // 
+            this.exitLabelButton.AutoSize = true;
+            this.exitLabelButton.BackColor = System.Drawing.Color.Red;
+            this.exitLabelButton.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.exitLabelButton.Cursor = System.Windows.Forms.Cursors.Arrow;
+            this.exitLabelButton.Font = new System.Drawing.Font("Segoe UI", 16.2F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.exitLabelButton.ForeColor = System.Drawing.Color.White;
+            this.exitLabelButton.Location = new System.Drawing.Point(556, 0);
+            this.exitLabelButton.Name = "exitLabelButton";
+            this.exitLabelButton.Size = new System.Drawing.Size(68, 40);
+            this.exitLabelButton.TabIndex = 1;
+            this.exitLabelButton.Text = "  X  ";
+            this.exitLabelButton.Click += new System.EventHandler(this.exitLabelButton_Click);
             // 
             // Login
             // 
@@ -230,7 +233,6 @@ namespace Live_Rate_Application
             ((System.ComponentModel.ISupportInitialize)(this.errorProvider)).EndInit();
             this.formPanel.ResumeLayout(false);
             this.formPanel.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.logoPictureBox)).EndInit();
             this.ResumeLayout(false);
 
         }
@@ -246,9 +248,9 @@ namespace Live_Rate_Application
         private ErrorProvider errorProvider;
         private Panel formPanel;
         private Label titleLabel;
-        private PictureBox logoPictureBox;
         private CheckBox saveCredential;
         private Panel unameUnderline;
         private Panel passwordUnderline;
+        private Label exitLabelButton;
     }
 }

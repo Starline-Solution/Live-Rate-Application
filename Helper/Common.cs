@@ -1,5 +1,6 @@
 ﻿using SocketIOClient;
 using System;
+using System.Globalization;
 using System.IO;
 using System.Net.NetworkInformation;
 using System.Threading;
@@ -98,6 +99,23 @@ namespace Live_Rate_Application.Helper
             
         }
 
+
+        // Helper method for safe decimal conversion
+        public decimal SafeConvertToDecimal(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value) ||
+                value.Equals("NaN", StringComparison.OrdinalIgnoreCase))
+            {
+                return 0m;
+            }
+
+            if (decimal.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal result))
+            {
+                return result;
+            }
+
+            return 0m; // Default fallback value
+        }
 
 
     }

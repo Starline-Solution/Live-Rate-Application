@@ -351,7 +351,7 @@ namespace Live_Rate_Application
         private System.Windows.Forms.ContextMenuStrip Tools;
         private System.Windows.Forms.ToolStripMenuItem exportToXSLXToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem refreshToolStripMenuItem;
-        private System.Windows.Forms.ToolStripStatusLabel statusLabel;
+        public System.Windows.Forms.ToolStripStatusLabel statusLabel;
         private Panel headerPanel;
         public System.Windows.Forms.Label titleLabel;
         private ToolTip toolTip;

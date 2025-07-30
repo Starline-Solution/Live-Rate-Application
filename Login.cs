@@ -116,7 +116,7 @@ namespace Live_Rate_Application
                 {
                     try
                     {
-                        string apiUrl = "http://35.176.5.121:1001/ClientAuth/login";
+                        string apiUrl = "https://excelapi.starlineapi.in/ClientAuth/login";
                         string jsonData = JsonSerializer.Serialize(loginData);
                         var content = new StringContent(jsonData, Encoding.UTF8, "application/json");
 
@@ -253,9 +253,15 @@ namespace Live_Rate_Application
         {
             if (e.KeyCode == Keys.Escape)
             {
-                this.Close(); // Close the login form
-                Application.Exit(); // Terminate the application
+                var result = MessageBox.Show("Do you want to Exit Application?", "Exit Application", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                if (result == DialogResult.Yes)
+                {
+                    this.Close(); // Close the login form
+                    Application.Exit(); // Terminate the application
+                }
             }
+            
+            
         }
 
         // Add these event handlers for better UX:
@@ -314,5 +320,15 @@ namespace Live_Rate_Application
             CredentialManager.SaveCredentials(unameTextBox.Text, passwordtextBox.Text, saveCredential.Checked ? true : false);
         }
 
+        private void exitLabelButton_Click(object sender, EventArgs e)
+        {
+            var result = MessageBox.Show("Do you want to Exit Application?", "Exit Application", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+            if (result == DialogResult.Yes)
+            {
+                this.Close(); // Close the login form
+                System.Windows.Forms.Application.Exit(); // Terminate the application
+
+            }
+        }
     }
 }

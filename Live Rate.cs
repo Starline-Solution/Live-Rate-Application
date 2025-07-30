@@ -25,6 +25,7 @@ using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Windows.Media;
 using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Live_Rate_Application
@@ -52,7 +53,7 @@ namespace Live_Rate_Application
         private bool isSymbolMasterInitialized = false;
         public List<string> FileLists = new List<string>();
         public List<string> columnPreferences;
-        public List<string> allColumns = new List<string>()
+        public List<string> columnPreferencesDefault = new List<string>()
                {
                     "Symbol",
                     "Bid",
@@ -199,7 +200,7 @@ namespace Live_Rate_Application
         {
             try
             {
-                string apiUrl = $"http://35.176.5.121:1001/ClientAuth/getSymbols?Token={token}";
+                string apiUrl = $"https://excelapi.starlineapi.in/ClientAuth/getSymbols?Token={token}";
 
                 using (HttpClient client = new HttpClient())
                 {
@@ -236,8 +237,13 @@ namespace Live_Rate_Application
         {
             if (e.KeyCode == Keys.Escape)
             {
-                this.Close(); // Close the login form
-                System.Windows.Forms.Application.Exit(); // Terminate the application
+                var result = MessageBox.Show("Do you want to Exit Application?", "Exit Application", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                if (result == DialogResult.Yes)
+                {
+                    this.Close(); // Close the login form
+                    System.Windows.Forms.Application.Exit(); // Terminate the application
+
+                }            
             }
 
             if (e.Control && e.KeyCode == Keys.N && marketWatchViewMode != MarketWatchViewMode.New)
@@ -335,6 +341,8 @@ namespace Live_Rate_Application
             editableGrid.BringToFront();
             editableGrid.Focus();
             editableGrid.isEditMarketWatch = true;
+            editableGrid.columnPreferences = columnPreferences ?? columnPreferencesDefault;
+            editableGrid.columnPreferencesDefault = columnPreferencesDefault;
 
             if (editableGrid != null && editableGrid.selectedSymbols != null && isEdit)
             {
@@ -1679,6 +1687,8 @@ namespace Live_Rate_Application
 
                         lock (tableLock)
                         {
+                            if(columnPreferences.Count != 0);
+
                             if (marketDataTable == null) return; // safety check
 
                             marketDataTable.Clear();
@@ -1688,13 +1698,13 @@ namespace Live_Rate_Application
                                 var row = marketDataTable.NewRow();
 
                                 row["Symbol"] = item["Symbol"]?.ToString();
-                                row["Bid"] = item["Bid"]?.ToString();
-                                row["Ask"] = item["Ask"]?.ToString();
-                                row["High"] = item["High"]?.ToString();
-                                row["Low"] = item["Low"]?.ToString();
-                                row["Open"] = item["Open"]?.ToString();
-                                row["Close"] = item["Close"]?.ToString();
-                                row["LTP"] = item["LTP"]?.ToString();
+                                row["Bid"] = CommonClass.SafeConvertToDecimal(item["Bid"]?.ToString());
+                                row["Ask"] = CommonClass.SafeConvertToDecimal(item["Ask"]?.ToString());
+                                row["High"] = CommonClass.SafeConvertToDecimal(item["High"]?.ToString());
+                                row["Low"] = CommonClass.SafeConvertToDecimal(item["Low"]?.ToString());
+                                row["Open"] = CommonClass.SafeConvertToDecimal(item["Open"]?.ToString());
+                                row["Close"] = CommonClass.SafeConvertToDecimal(item["Close"]?.ToString());
+                                row["LTP"] = CommonClass.SafeConvertToDecimal(item["LTP"]?.ToString());
                                 row["DateTime"] = item["DateTime"]?.ToString();
 
                                 marketDataTable.Rows.Add(row);
@@ -1709,6 +1719,14 @@ namespace Live_Rate_Application
                                                     .ToList();
 
                                 isSymbolMasterInitialized = true;
+                            }
+
+                            foreach (DataColumn column in marketDataTable.Columns) 
+                            {
+                                // Set column visibility based on preferences
+                                column.ColumnMapping = columnPreferences.Contains(column.ColumnName)
+                                    ? MappingType.Element
+                                    : MappingType.Hidden;
                             }
 
                         }
@@ -1763,24 +1781,54 @@ namespace Live_Rate_Application
 
         private void InitializeDataGridView()
         {
+            // Suspend layout for better performance
+            dataGridView1.SuspendLayout();
 
-            // Clear existing columns if any
-            dataGridView1.Columns.Clear();
-
-            // Add columns from the list
-            foreach (string columnName in allColumns)
+            try
             {
-                DataGridViewColumn column = new DataGridViewTextBoxColumn
+                // Get visible columns (where Hidden is not true) from marketDataTable
+                var columnsToShow = marketDataTable?.Columns
+                    .Cast<DataColumn>()
+                    .Where(col => col.ColumnMapping != MappingType.Hidden)
+                    .Select(col => col.ColumnName)
+                    .ToList() ?? new List<string>();
+
+                // First, ensure all possible columns exist in the DataGridView
+                foreach (DataColumn dataColumn in marketDataTable.Columns)
                 {
-                    Name = columnName,
-                    HeaderText = columnName,
-                    SortMode = DataGridViewColumnSortMode.NotSortable,
-                    ReadOnly = true
-                };
+                    string columnName = dataColumn.ColumnName;
 
-               
+                    // Check if column already exists
+                    if (!dataGridView1.Columns.Contains(columnName))
+                    {
+                        // Add new column if it doesn't exist
+                        DataGridViewColumn column = new DataGridViewTextBoxColumn
+                        {
+                            Name = columnName,
+                            HeaderText = columnName,
+                            SortMode = DataGridViewColumnSortMode.NotSortable,
+                            ReadOnly = true,
+                            Visible = columnsToShow.Contains(columnName) // Set initial visibility
+                        };
+                        dataGridView1.Columns.Add(column);
+                    }
+                    else
+                    {
+                        // Column exists - just update visibility
+                        dataGridView1.Columns[columnName].Visible = columnsToShow.Contains(columnName);
+                    }
+                }
 
-                dataGridView1.Columns.Add(column);
+                // Hide any columns that shouldn't be visible (but keep them in the collection)
+                foreach (DataGridViewColumn column in dataGridView1.Columns)
+                {
+                    column.Visible = columnsToShow.Contains(column.Name);
+                }
+            }
+            finally
+            {
+                // Resume layout
+                dataGridView1.ResumeLayout();
             }
 
             // Enable double buffering for better performance
@@ -1789,8 +1837,6 @@ namespace Live_Rate_Application
                 System.Reflection.BindingFlags.Instance |
                 System.Reflection.BindingFlags.SetProperty,
                 null, dataGridView1, new object[] { true });
-
-
         }
 
         private void UpdateGridInternal()
@@ -1798,10 +1844,18 @@ namespace Live_Rate_Application
             int FixedRowCount = 17;
 
             if (marketDataTable == null)
-                return; // Or handle accordingly
+                return;
 
-            var rows = marketDataTable.Rows.Cast<DataRow>().ToList();
+            List<DataRow> rows = null;
+            try
+            {
+                rows = marketDataTable.Rows.Cast<DataRow>().ToList();
 
+            }
+            catch (NullReferenceException)
+            {
+                return;
+            }
             bool symbolRowUpdate = false;
 
             // Clean up symbols not in selectedSymbols
@@ -1812,12 +1866,19 @@ namespace Live_Rate_Application
 
                 if (isLoadedSymbol)
                 {
-                    string symbol = row[0]?.ToString();
-                    if (!selectedSymbols.Contains(symbol))
+                    try
                     {
-                        row.Delete();
-                        FixedRowCount--;
-                        continue;
+                        string symbol = row["Symbol"]?.ToString(); // Use column name instead of index
+                        if (!selectedSymbols.Contains(symbol))
+                        {
+                            row.Delete();
+                            FixedRowCount--;
+                            continue;
+                        }
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        return;
                     }
                 }
             }
@@ -1827,18 +1888,14 @@ namespace Live_Rate_Application
             dataGridView1.SuspendLayout();
             try
             {
-
-
                 // Ensure columns exist and style them
                 if (dataGridView1.Columns.Count == 0)
                 {
                     InitializeDataGridView();
-
-                    dataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells; // or None
-
+                    dataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells;
                 }
 
-                // Apply header and cell styles only once
+                // Apply header and cell styles
                 var headerFont = new System.Drawing.Font("Segoe UI", fontSize + 2, FontStyle.Bold);
                 var cellFont = new System.Drawing.Font("Segoe UI", fontSize, FontStyle.Regular);
                 var symbolFont = new System.Drawing.Font("Segoe UI", fontSize, FontStyle.Bold);
@@ -1851,26 +1908,6 @@ namespace Live_Rate_Application
 
                 dataGridView1.ColumnHeadersHeight = (int)Math.Ceiling((fontSize + 2) * 3.0);
 
-                foreach (DataGridViewColumn column in dataGridView1.Columns)
-                {
-                    if (column.Index == 0)
-                    {
-                        column.DefaultCellStyle = new DataGridViewCellStyle
-                        {
-                            Alignment = DataGridViewContentAlignment.MiddleLeft,
-                            Font = symbolFont
-                        };
-                    }
-                    else
-                    {
-                        column.DefaultCellStyle = new DataGridViewCellStyle
-                        {
-                            Alignment = DataGridViewContentAlignment.MiddleRight,
-                            Font = cellFont
-                        };
-                    }
-                }
-
                 // Maintain exact row count
                 while (dataGridView1.Rows.Count < FixedRowCount)
                     dataGridView1.Rows.Add();
@@ -1881,13 +1918,16 @@ namespace Live_Rate_Application
 
                 for (int i = 0; i < rowsToUpdate; i++)
                 {
-                    for (int j = 0; j < dataGridView1.Columns.Count; j++)
+                    DataRow dataRow = marketDataTable.Rows[i];
+
+                    foreach (DataGridViewColumn column in dataGridView1.Columns)
                     {
-                        if (j == 0)
+                        var cell = dataGridView1.Rows[i].Cells[column.Name];
+
+                        if (column.Name == "Symbol") // Handle symbol column specially
                         {
-                            string symbol = marketDataTable.Rows[i][j]?.ToString() ?? "";
-                            int askColumnIndex = 2; // Update accordingly
-                            object askValueObj = marketDataTable.Rows[i][askColumnIndex];
+                            string symbol = dataRow["Symbol"]?.ToString() ?? "";
+                            object askValueObj = dataRow["Ask"]; // Use column name
 
                             string arrow = "";
                             System.Drawing.Color arrowColor = System.Drawing.Color.Black;
@@ -1907,70 +1947,66 @@ namespace Live_Rate_Application
                                         arrowColor = System.Drawing.Color.Red;
                                     }
                                 }
-
                                 previousAsks[symbol] = currentAsk;
                             }
 
-                            var symbolCell = dataGridView1.Rows[i].Cells[j];
-                            symbolCell.Value = symbol + arrow;
-                            symbolCell.Style = new DataGridViewCellStyle
+                            cell.Value = symbol + arrow;
+                            cell.Style = new DataGridViewCellStyle
                             {
                                 Alignment = DataGridViewContentAlignment.MiddleLeft,
                                 ForeColor = arrowColor,
                                 Font = symbolFont
                             };
-                            continue;
                         }
-
-                        // Skip last column for special handling (e.g. timestamp?)
-                        if (j == dataGridView1.Columns.Count - 1)
+                        else // Handle other columns
                         {
-                            dataGridView1.Rows[i].Cells[j].Value = marketDataTable.Rows[i][j]?.ToString();
-                            dataGridView1.Rows[i].Cells[j].Style = new DataGridViewCellStyle
+                            object value = dataRow[column.Name]; // Use column name instead of index
+                            string currentValueStr = cell.Value?.ToString() ?? string.Empty;
+
+                            if (value != DBNull.Value && double.TryParse(value.ToString(), out double number))
                             {
-                                Alignment = DataGridViewContentAlignment.MiddleLeft,
-                                ForeColor = System.Drawing.Color.Black,
+                                cell.Value = number.ToString("F2");
+                            }
+                            // Last Date Column  formatting
+                            else if (column.Name == "DateTime" && value != DBNull.Value)
+                            {
+                                if (DateTime.TryParse(value.ToString(), out DateTime dateTime))
+                                {
+                                    cell.Value = dateTime.ToString("dd/MM/yyyy HH:mm:ss");
+                                    cell.Style.Alignment = DataGridViewContentAlignment.MiddleLeft;
+                                    cell.Style.Font = cellFont;
+                                }
+                                else
+                                {
+                                    cell.Value = string.Empty;
+                                }
+                            }
+                            else
+                            {
+                                cell.Value = string.Empty;
+                            }
+
+                            var cellStyle = new DataGridViewCellStyle
+                            {
+                                Alignment = column.Name == dataGridView1.Columns[dataGridView1.Columns.Count - 1].Name
+                                    ? DataGridViewContentAlignment.MiddleLeft
+                                    : DataGridViewContentAlignment.MiddleRight,
                                 Font = cellFont
                             };
-                            continue;
+
+                            if (decimal.TryParse(currentValueStr, out decimal currentDecimal) &&
+                                decimal.TryParse(value?.ToString(), out decimal newDecimal))
+                            {
+                                cellStyle.ForeColor = newDecimal > currentDecimal ? System.Drawing.Color.Green :
+                                                    newDecimal < currentDecimal ? System.Drawing.Color.Red :
+                                                    System.Drawing.Color.Black;
+                            }
+
+                            cell.Style = cellStyle;
                         }
-
-                        object currentValueObj = dataGridView1.Rows[i].Cells[j].Value;
-                        string currentValueStr = currentValueObj?.ToString() ?? string.Empty;
-                        object value = marketDataTable.Rows[i][j];
-
-                        if (value != DBNull.Value && double.TryParse(value.ToString(), out double number))
-                        {
-                            dataGridView1.Rows[i].Cells[j].Value = number.ToString("F2");
-                        }
-                        else
-                        {
-                            dataGridView1.Rows[i].Cells[j].Value = string.Empty;
-                        }
-
-                        var cellStyle = new DataGridViewCellStyle
-                        {
-                            Alignment = DataGridViewContentAlignment.MiddleRight,
-                            Font = cellFont
-                        };
-
-                        if (decimal.TryParse(currentValueStr, out decimal currentDecimal) &&
-                            decimal.TryParse(value?.ToString(), out decimal newDecimal))
-                        {
-                            if (newDecimal > currentDecimal)
-                                cellStyle.ForeColor = System.Drawing.Color.Green;
-                            else if (newDecimal < currentDecimal)
-                                cellStyle.ForeColor = System.Drawing.Color.Red;
-                            else
-                                cellStyle.ForeColor = System.Drawing.Color.Black;
-                        }
-
-                        dataGridView1.Rows[i].Cells[j].Style = cellStyle;
                     }
-                    dataGridView1.Rows[i].Height = (int)Math.Ceiling((fontSize) * 2.7);
+                    dataGridView1.Rows[i].Height = (int)Math.Ceiling(fontSize * 2.7);
                 }
-
-                dataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells;
 
                 // Handle symbol column fixed width
                 if (symbolColumnFixedWidth == 0 && rowsToUpdate > 0)
@@ -1980,7 +2016,7 @@ namespace Live_Rate_Application
                     {
                         for (int i = 0; i < rowsToUpdate; i++)
                         {
-                            var cell = dataGridView1.Rows[i].Cells[0];
+                            var cell = dataGridView1.Rows[i].Cells["Symbol"];
                             var text = cell.Value?.ToString() ?? "";
                             System.Drawing.Size textSize = TextRenderer.MeasureText(text, symbolFont);
                             maxSymbolWidth = Math.Max(maxSymbolWidth, textSize.Width);
@@ -1989,28 +2025,20 @@ namespace Live_Rate_Application
                     }
 
                     symbolColumnFixedWidth = maxSymbolWidth;
-                    if (dataGridView1.Columns.Count > 0)
+                    if (dataGridView1.Columns.Contains("Symbol"))
                     {
-                        dataGridView1.Columns[0].AutoSizeMode = DataGridViewAutoSizeColumnMode.DisplayedCells;
-                        dataGridView1.Columns[0].Width = symbolColumnFixedWidth;
+                        dataGridView1.Columns["Symbol"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                        dataGridView1.Columns["Symbol"].Width = symbolColumnFixedWidth;
                     }
-                }
-                else if (symbolColumnFixedWidth > 0 && dataGridView1.Columns.Count > 0)
-                {
-                    dataGridView1.Columns[0].AutoSizeMode = DataGridViewAutoSizeColumnMode.DisplayedCells;
-                    dataGridView1.Columns[0].Width = symbolColumnFixedWidth;
                 }
 
                 // Clear extra rows
                 for (int i = rowsToUpdate; i < FixedRowCount; i++)
                 {
-                    for (int j = 0; j < dataGridView1.Columns.Count; j++)
+                    foreach (DataGridViewCell cell in dataGridView1.Rows[i].Cells)
                     {
-                        if (dataGridView1.Rows[i].Cells[j].Value != null)
-                        {
-                            dataGridView1.Rows[i].Cells[j].Value = DBNull.Value;
-                            dataGridView1.Rows[i].Cells[j].Style = dataGridView1.DefaultCellStyle;
-                        }
+                        cell.Value = DBNull.Value;
+                        cell.Style = dataGridView1.DefaultCellStyle;
                     }
                 }
             }
@@ -2441,7 +2469,8 @@ namespace Live_Rate_Application
                 btnConfirmAddColumns.Click += (s, e2) =>
                 {
                     var currentlyChecked = checkedListColumns.CheckedItems.Cast<string>().ToList();
-                    var previouslySelected = columnPreferences.Count > 0 ? columnPreferences : allColumns;
+                    var previouslySelected = columnPreferences.Count > 0 ? columnPreferences : columnPreferencesDefault;
+
 
                     if (!currentlyChecked.Any())
                     {
@@ -2459,8 +2488,19 @@ namespace Live_Rate_Application
                     // Save the new column preferences
                     columnPreferences = currentlyChecked;
 
+
+                    // Update DataTable column visibility
+                    foreach (DataColumn column in marketDataTable.Columns)
+                    {
+                        column.ColumnMapping = columnPreferences.Contains(column.ColumnName)
+                            ? MappingType.Element
+                            : MappingType.Hidden;
+                    }
+
+                    InitializeDataGridView();
+
                     panelAddColumns.Visible = false;
-                    MessageBox.Show("Columns updated successfully!");
+                    //MessageBox.Show("Columns updated successfully!");
 
                 };
 
@@ -2473,11 +2513,12 @@ namespace Live_Rate_Application
             // Refresh items before showing
             checkedListColumns.Items.Clear();
 
+
             // Get the columns to display (use allColumns if no preferences set)
-            var columnsToShow = columnPreferences.Count > 0 ? columnPreferences : allColumns;
+            var columnsToShow = columnPreferences.Count > 0 ? columnPreferences : columnPreferencesDefault;
 
             // Add selected columns first (preserving order)
-            foreach (string column in allColumns)
+            foreach (string column in columnPreferencesDefault)
             {
                 if (columnsToShow.Contains(column))
                 {
@@ -2486,13 +2527,14 @@ namespace Live_Rate_Application
             }
 
             // Then add unselected columns
-            foreach (string column in allColumns)
+            foreach (string column in columnPreferencesDefault)
             {
                 if (!columnsToShow.Contains(column))
                 {
                     checkedListColumns.Items.Add(column, false);
                 }
             }
+
 
             // Update Select All button text
             btnSelectAllColumns.Text = checkedListColumns.CheckedItems.Count == checkedListColumns.Items.Count
