@@ -163,6 +163,11 @@ namespace Live_Rate_Application.MarketWatch
 
         private void InitializeAddSymbolPanel()
         {
+
+            if (panelAddColumns != null && panelAddColumns.Visible)
+                panelAddColumns.Visible = false;
+
+
             // Container panel (with padding and rounded look)
             panelAddSymbols = new Panel
             {
@@ -410,6 +415,11 @@ namespace Live_Rate_Application.MarketWatch
 
         private void ShowAddColumnPanel()
         {
+
+            if (panelAddSymbols != null && panelAddSymbols.Visible)
+                panelAddSymbols.Visible = false;
+
+
             // Create panel if it hasn't been initialized yet
             if (panelAddColumns == null)
             {

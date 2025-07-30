@@ -1,10 +1,5 @@
-﻿using ClosedXML.Excel;
-using DocumentFormat.OpenXml.Drawing.Charts;
-using DocumentFormat.OpenXml.Spreadsheet;
-using DocumentFormat.OpenXml.Wordprocessing;
-using Live_Rate_Application.Helper;
+﻿using Live_Rate_Application.Helper;
 using Live_Rate_Application.MarketWatch;
-using Microsoft.Office.Interop.Excel;
 using Microsoft.Win32;
 using SocketIOClient;
 using System;
@@ -25,7 +20,6 @@ using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.Windows.Media;
 using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Live_Rate_Application
@@ -49,7 +43,7 @@ namespace Live_Rate_Application
         public string lastOpenMarketWatch = string.Empty;
         bool isLoadedSymbol = false;
         public List<string> selectedSymbols = new List<string>();
-        private List<string> symbolMaster = new List<string>();
+        public List<string> symbolMaster = new List<string>();
         private bool isSymbolMasterInitialized = false;
         public List<string> FileLists = new List<string>();
         public List<string> columnPreferences;
@@ -149,6 +143,11 @@ namespace Live_Rate_Application
                 var (currentWatch, currentColumns) = CredentialManager.GetCurrentMarketWatchWithColumns();
                 lastOpenMarketWatch =  currentWatch;
                 columnPreferences = currentColumns;
+
+                if (columnPreferences == null || columnPreferences.Count == 0) 
+                { 
+                    columnPreferences = columnPreferencesDefault;
+                }
 
                 await LoadSymbolsAsync();
 
@@ -1687,7 +1686,6 @@ namespace Live_Rate_Application
 
                         lock (tableLock)
                         {
-                            if(columnPreferences.Count != 0);
 
                             if (marketDataTable == null) return; // safety check
 
@@ -1792,6 +1790,11 @@ namespace Live_Rate_Application
                     .Where(col => col.ColumnMapping != MappingType.Hidden)
                     .Select(col => col.ColumnName)
                     .ToList() ?? new List<string>();
+
+                if (!columnsToShow.Contains("Symbol")) 
+                {
+                    columnsToShow.Add("Symbol"); // Ensure Symbol column is always visible
+                }
 
                 // First, ensure all possible columns exist in the DataGridView
                 foreach (DataColumn dataColumn in marketDataTable.Columns)
@@ -2083,7 +2086,7 @@ namespace Live_Rate_Application
         #endregion
         private void addEditSymbolsToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            if (panelAddColumns.Visible)
+            if (panelAddColumns != null && panelAddColumns.Visible)
                 panelAddColumns.Visible = false;
 
             // Create panel if it hasn't been initialized yet
@@ -2326,7 +2329,7 @@ namespace Live_Rate_Application
         private void addEditColumnsToolStripMenuItem_Click(object sender, EventArgs e)
         {
 
-            if(panelAddSymbols.Visible)
+            if (panelAddSymbols != null && panelAddSymbols.Visible)
                 panelAddSymbols.Visible = false;
 
             // Create panel if it hasn't been initialized yet
@@ -2580,6 +2583,14 @@ namespace Live_Rate_Application
 
             panelAddColumns.Visible = true;
             panelAddColumns.BringToFront();
+        }
+
+        private void alertToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            using (var alertForm = new AlertCreationPanel())
+            {
+                alertForm.ShowDialog(); // This centers it over the parent form
+            }
         }
     }
 }

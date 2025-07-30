@@ -265,6 +265,9 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Helper\AlertCreationPanel.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Helper\Common.cs" />
     <Compile Include="Helper\CredentialManager.cs" />
     <Compile Include="Helper\DesktopShortcut.cs" />

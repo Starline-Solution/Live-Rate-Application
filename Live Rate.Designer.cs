@@ -36,6 +36,7 @@ namespace Live_Rate_Application
             this.newMarketWatchMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.openCTRLOToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.deleteToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.alertToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.dataGridView1 = new System.Windows.Forms.DataGridView();
             this.Tools = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.exportToXSLXToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -66,7 +67,8 @@ namespace Live_Rate_Application
             this.mainMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.toolsMenuItem,
             this.saveMarketWatchHost,
-            this.marketWatchMenuItem});
+            this.marketWatchMenuItem,
+            this.alertToolStripMenuItem});
             this.mainMenu.LayoutStyle = System.Windows.Forms.ToolStripLayoutStyle.HorizontalStackWithOverflow;
             this.mainMenu.Location = new System.Drawing.Point(0, 30);
             this.mainMenu.Name = "mainMenu";
@@ -143,6 +145,14 @@ namespace Live_Rate_Application
             this.deleteToolStripMenuItem.Size = new System.Drawing.Size(231, 28);
             this.deleteToolStripMenuItem.Text = "Delete";
             this.deleteToolStripMenuItem.Click += new System.EventHandler(this.DeleteToolStripMenuItem_Click);
+            // 
+            // alertToolStripMenuItem
+            // 
+            this.alertToolStripMenuItem.Name = "alertToolStripMenuItem";
+            this.alertToolStripMenuItem.Size = new System.Drawing.Size(60, 27);
+            this.alertToolStripMenuItem.Text = "Alert";
+            this.alertToolStripMenuItem.Visible = false;
+            this.alertToolStripMenuItem.Click += new System.EventHandler(this.alertToolStripMenuItem_Click);
             // 
             // dataGridView1
             // 
@@ -363,5 +373,6 @@ namespace Live_Rate_Application
         private ToolStripMenuItem saveMarketWatchHost;
         private ComboBox fontSizeComboBox;
         private ToolStripMenuItem addEditColumnsToolStripMenuItem;
+        private ToolStripMenuItem alertToolStripMenuItem;
     }
 }
