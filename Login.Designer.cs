@@ -37,11 +37,11 @@ namespace Live_Rate_Application
             this.eyePictureBox = new System.Windows.Forms.PictureBox();
             this.errorProvider = new System.Windows.Forms.ErrorProvider(this.components);
             this.formPanel = new System.Windows.Forms.Panel();
+            this.exitLabelButton = new System.Windows.Forms.Label();
             this.saveCredential = new System.Windows.Forms.CheckBox();
             this.titleLabel = new System.Windows.Forms.Label();
             this.unameUnderline = new System.Windows.Forms.Panel();
             this.passwordUnderline = new System.Windows.Forms.Panel();
-            this.exitLabelButton = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)(this.eyePictureBox)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.errorProvider)).BeginInit();
             this.formPanel.SuspendLayout();
@@ -159,6 +159,21 @@ namespace Live_Rate_Application
             this.formPanel.Size = new System.Drawing.Size(625, 625);
             this.formPanel.TabIndex = 0;
             // 
+            // exitLabelButton
+            // 
+            this.exitLabelButton.AutoSize = true;
+            this.exitLabelButton.BackColor = System.Drawing.Color.Red;
+            this.exitLabelButton.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.exitLabelButton.Cursor = System.Windows.Forms.Cursors.Arrow;
+            this.exitLabelButton.Font = new System.Drawing.Font("Segoe UI", 16.2F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.exitLabelButton.ForeColor = System.Drawing.Color.White;
+            this.exitLabelButton.Location = new System.Drawing.Point(556, 0);
+            this.exitLabelButton.Name = "exitLabelButton";
+            this.exitLabelButton.Size = new System.Drawing.Size(68, 40);
+            this.exitLabelButton.TabIndex = 1;
+            this.exitLabelButton.Text = "  X  ";
+            this.exitLabelButton.Click += new System.EventHandler(this.exitLabelButton_Click);
+            // 
             // saveCredential
             // 
             this.saveCredential.AutoSize = true;
@@ -198,21 +213,6 @@ namespace Live_Rate_Application
             this.passwordUnderline.Name = "passwordUnderline";
             this.passwordUnderline.Size = new System.Drawing.Size(375, 1);
             this.passwordUnderline.TabIndex = 6;
-            // 
-            // exitLabelButton
-            // 
-            this.exitLabelButton.AutoSize = true;
-            this.exitLabelButton.BackColor = System.Drawing.Color.Red;
-            this.exitLabelButton.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.exitLabelButton.Cursor = System.Windows.Forms.Cursors.Arrow;
-            this.exitLabelButton.Font = new System.Drawing.Font("Segoe UI", 16.2F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.exitLabelButton.ForeColor = System.Drawing.Color.White;
-            this.exitLabelButton.Location = new System.Drawing.Point(556, 0);
-            this.exitLabelButton.Name = "exitLabelButton";
-            this.exitLabelButton.Size = new System.Drawing.Size(68, 40);
-            this.exitLabelButton.TabIndex = 1;
-            this.exitLabelButton.Text = "  X  ";
-            this.exitLabelButton.Click += new System.EventHandler(this.exitLabelButton_Click);
             // 
             // Login
             // 

@@ -61,16 +61,6 @@ namespace Live_Rate_Application.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized resource of type System.Drawing.Bitmap.
-        /// </summary>
-        internal static System.Drawing.Bitmap ApplicationIcon {
-            get {
-                object obj = ResourceManager.GetObject("ApplicationIcon", resourceCulture);
-                return ((System.Drawing.Bitmap)(obj));
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Icon similar to (Icon).
         /// </summary>
         internal static System.Drawing.Icon AppLogo {
@@ -106,16 +96,6 @@ namespace Live_Rate_Application.Properties {
         internal static System.Drawing.Bitmap SearchIcon {
             get {
                 object obj = ResourceManager.GetObject("SearchIcon", resourceCulture);
-                return ((System.Drawing.Bitmap)(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized resource of type System.Drawing.Bitmap.
-        /// </summary>
-        internal static System.Drawing.Bitmap Starline_Solution {
-            get {
-                object obj = ResourceManager.GetObject("Starline_Solution", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }

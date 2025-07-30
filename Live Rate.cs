@@ -2083,6 +2083,9 @@ namespace Live_Rate_Application
         #endregion
         private void addEditSymbolsToolStripMenuItem_Click(object sender, EventArgs e)
         {
+            if (panelAddColumns.Visible)
+                panelAddColumns.Visible = false;
+
             // Create panel if it hasn't been initialized yet
             if (panelAddSymbols == null)
             {
@@ -2322,6 +2325,10 @@ namespace Live_Rate_Application
 
         private void addEditColumnsToolStripMenuItem_Click(object sender, EventArgs e)
         {
+
+            if(panelAddSymbols.Visible)
+                panelAddSymbols.Visible = false;
+
             // Create panel if it hasn't been initialized yet
             if (panelAddColumns == null)
             {
@@ -2488,6 +2495,12 @@ namespace Live_Rate_Application
                     // Save the new column preferences
                     columnPreferences = currentlyChecked;
 
+                    // Make sure Symbol column is always visible in the grid
+                    if (!columnPreferences.Contains("Symbol"))
+                    {
+                        columnPreferences.Add("Symbol");
+                    }
+
 
                     // Update DataTable column visibility
                     foreach (DataColumn column in marketDataTable.Columns)
@@ -2520,7 +2533,7 @@ namespace Live_Rate_Application
             // Add selected columns first (preserving order)
             foreach (string column in columnPreferencesDefault)
             {
-                if (columnsToShow.Contains(column))
+                if (columnsToShow.Contains(column) && column != "Symbol")
                 {
                     checkedListColumns.Items.Add(column, true);
                 }
@@ -2529,7 +2542,7 @@ namespace Live_Rate_Application
             // Then add unselected columns
             foreach (string column in columnPreferencesDefault)
             {
-                if (!columnsToShow.Contains(column))
+                if (!columnsToShow.Contains(column) && column != "Symbol")
                 {
                     checkedListColumns.Items.Add(column, false);
                 }
@@ -2540,6 +2553,30 @@ namespace Live_Rate_Application
             btnSelectAllColumns.Text = checkedListColumns.CheckedItems.Count == checkedListColumns.Items.Count
                 ? "Unselect All"
                 : "Select All";
+
+
+
+            // Make sure Symbol column is always visible in the grid
+            if (!columnPreferences.Contains("Symbol"))
+            {
+                columnPreferences.Add("Symbol");
+            }
+
+            // Update DataTable column visibility to ensure Symbol is always visible
+            foreach (DataColumn column in marketDataTable.Columns)
+            {
+                if (column.ColumnName == "Symbol")
+                {
+                    column.ColumnMapping = MappingType.Element;
+                }
+                else
+                {
+                    column.ColumnMapping = columnPreferences.Contains(column.ColumnName)
+                        ? MappingType.Element
+                        : MappingType.Hidden;
+                }
+            }
+
 
             panelAddColumns.Visible = true;
             panelAddColumns.BringToFront();

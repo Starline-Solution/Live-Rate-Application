@@ -576,6 +576,11 @@ namespace Live_Rate_Application.MarketWatch
                     // Save the new column preferences
                     columnPreferences = currentlyChecked;
 
+                    // Make sure Symbol column is always visible in the grid
+                    if (!columnPreferences.Contains("Symbol"))
+                    {
+                        columnPreferences.Add("Symbol");
+                    }
 
                     // Update DataTable column visibility
                     foreach (DataColumn column in marketWatchDatatable.Columns)
@@ -611,7 +616,7 @@ namespace Live_Rate_Application.MarketWatch
             // Add selected columns first (preserving order)
             foreach (string column in columnPreferencesDefault)
             {
-                if (columnsToShow.Contains(column))
+                if (columnsToShow.Contains(column) && column != "Symbol")
                 {
                     checkedListColumns.Items.Add(column, true);
                 }
@@ -620,7 +625,7 @@ namespace Live_Rate_Application.MarketWatch
             // Then add unselected columns
             foreach (string column in columnPreferencesDefault)
             {
-                if (!columnsToShow.Contains(column))
+                if (!columnsToShow.Contains(column) && column != "Symbol")
                 {
                     checkedListColumns.Items.Add(column, false);
                 }
@@ -630,6 +635,29 @@ namespace Live_Rate_Application.MarketWatch
             btnSelectAllColumns.Text = checkedListColumns.CheckedItems.Count == checkedListColumns.Items.Count
                 ? "Unselect All"
                 : "Select All";
+
+
+
+            // Make sure Symbol column is always visible in the grid
+            if (!columnPreferences.Contains("Symbol"))
+            {
+                columnPreferences.Add("Symbol");
+            }
+
+            // Update DataTable column visibility to ensure Symbol is always visible
+            foreach (DataColumn column in marketWatchDatatable.Columns)
+            {
+                if (column.ColumnName == "Symbol")
+                {
+                    column.ColumnMapping = MappingType.Element;
+                }
+                else
+                {
+                    column.ColumnMapping = columnPreferences.Contains(column.ColumnName)
+                        ? MappingType.Element
+                        : MappingType.Hidden;
+                }
+            }
 
             panelAddColumns.Visible = true;
             panelAddColumns.BringToFront();
